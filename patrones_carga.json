@@ -1,0 +1,45 @@
+{
+  "LA": {
+    "0": {"izquierda": 10, "derecha": 12},
+    "25": {"izquierda": 15, "derecha": 18},
+    "50": {"izquierda": 200, "derecha": 220},
+    "75": {"izquierda": 300, "derecha": 320},
+    "100": {"izquierda": 400, "derecha": 420}
+  },
+  "LB": {
+    "0": {"izquierda": 8, "derecha": 10},
+    "25": {"izquierda": 12, "derecha": 15},
+    "50": {"izquierda": 180, "derecha": 200},
+    "75": {"izquierda": 280, "derecha": 300},
+    "100": {"izquierda": 380, "derecha": 400}
+  },
+  "LE": {
+    "0": {"izquierda": 15, "derecha": 16},
+    "25": {"izquierda": 20, "derecha": 22},
+    "50": {"izquierda": 250, "derecha": 260},
+    "75": {"izquierda": 350, "derecha": 360},
+    "100": {"izquierda": 450, "derecha": 460}
+  },
+  "LG": {
+    "0": {"izquierda": 5, "derecha": 7},
+    "25": {"izquierda": 10, "derecha": 12},
+    "50": {"izquierda": 150, "derecha": 170},
+    "75": {"izquierda": 250, "derecha": 270},
+    "100": {"izquierda": 350, "derecha": 370}
+  },
+  "LH": {
+    "0": {"izquierda": 12, "derecha": 14},
+    "25": {"izquierda": 18, "derecha": 20},
+    "50": {"izquierda": 220, "derecha": 240},
+    "75": {"izquierda": 320, "derecha": 340},
+    "100": {"izquierda": 420, "derecha": 440}
+  },
+  "LI": {
+    "0": {"izquierda": 20, "derecha": 22},
+    "25": {"izquierda": 25, "derecha": 28},
+    "50": {"izquierda": 280, "derecha": 300},
+    "75": {"izquierda": 380, "derecha": 400},
+    "100": {"izquierda": 480, "derecha": 500}
+  }
+}
+

@@ -131,6 +131,16 @@
             -moz-appearance: textfield;
         }
 
+        .ruido-group input[type="number"]::-webkit-inner-spin-button,
+        .ruido-group input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .ruido-group input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
         .input-row label {
             min-width: 70px;
             font-weight: normal;
@@ -182,6 +192,38 @@
             margin: 0 auto 20px auto;
             text-align: center;
             position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .informe-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .informe-group label {
+            color: white;
+            font-weight: bold;
+            font-size: 1em;
+            white-space: nowrap;
+        }
+
+        .informe-group input {
+            width: 200px;
+            padding: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            font-size: 1em;
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .informe-group input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.6);
         }
 
         .dispersion-group {
@@ -209,6 +251,36 @@
         }
 
         .dispersion-group input:focus {
+            outline: none;
+            border-color: rgba(255, 255, 255, 0.6);
+        }
+
+        .ruido-group {
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .ruido-group label {
+            color: white;
+            font-weight: bold;
+            font-size: 1em;
+            white-space: nowrap;
+        }
+
+        .ruido-group input {
+            width: 100px;
+            padding: 10px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-radius: 5px;
+            font-size: 1em;
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .ruido-group input:focus {
             outline: none;
             border-color: rgba(255, 255, 255, 0.6);
         }
@@ -348,6 +420,16 @@
                 <div class="dropdown-item" onclick="aplicarPatron('LI')">LI</div>
             </div>
         </div>
+        <div class="informe-group">
+            <label>Referencia:</label>
+            <input type="text" id="referenciaAlfanumerica" placeholder="Ej: ABC123">
+        </div>
+        <button onclick="crearInforme()">Crear informe</button>
+    </div>
+
+    <div class="ruido-group">
+        <label>Ruido (mm/s²):</label>
+        <input type="number" id="ruido" step="0.1" value="0">
     </div>
 
     <div class="dispersion-group">
@@ -803,6 +885,90 @@
         
         // Actualizar gráfico cuando cambie la dispersión
         document.getElementById('dispersion').addEventListener('input', updateChart);
+
+        // Función para crear informe
+        async function crearInforme() {
+            const referencia = document.getElementById('referenciaAlfanumerica').value;
+            if (!referencia.trim()) {
+                alert('Por favor, introduce una referencia alfanumérica.');
+                return;
+            }
+            
+            try {
+                // Capturar el gráfico como imagen
+                const canvas = document.getElementById('myChart');
+                const imagenGrafico = canvas.toDataURL('image/png');
+                
+                // Recopilar datos actuales
+                const percentages = ['0', '25', '50', '75', '100'];
+                const cargas = {};
+                
+                percentages.forEach(percent => {
+                    cargas[percent] = {
+                        izquierda: parseFloat(document.getElementById(`${percent}-izquierda`).value) || 0,
+                        derecha: parseFloat(document.getElementById(`${percent}-derecha`).value) || 0
+                    };
+                });
+                
+                const dispersion = parseFloat(document.getElementById('dispersion').value) || 0;
+                const ruido = parseFloat(document.getElementById('ruido').value) || 0;
+                
+                // Preparar datos para enviar
+                const datosInforme = {
+                    referencia: referencia,
+                    cargas: cargas,
+                    referencia_bmw: referenciaActual || null,
+                    dispersion: dispersion,
+                    ruido: ruido,
+                    imagen_grafico: imagenGrafico
+                };
+                
+                // Llamar al endpoint para generar el PDF
+                const response = await fetch('/api/generar-informe', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(datosInforme)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error al generar el informe');
+                }
+                
+                // Descargar el PDF
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Informe_${referencia.replace(/\s+/g, '_')}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+                
+                // Mostrar confirmación
+                const botones = document.querySelectorAll('button');
+                const botonInforme = Array.from(botones).find(btn => btn.textContent.includes('Crear informe'));
+                if (botonInforme) {
+                    const textoOriginal = botonInforme.textContent;
+                    botonInforme.textContent = '✓ Informe creado!';
+                    botonInforme.style.background = '#4caf50';
+                    botonInforme.style.color = 'white';
+                    
+                    setTimeout(() => {
+                        botonInforme.textContent = textoOriginal;
+                        botonInforme.style.background = '';
+                        botonInforme.style.color = '';
+                    }, 2000);
+                }
+                
+            } catch (err) {
+                console.error('Error al crear informe:', err);
+                alert('Error al crear el informe: ' + err.message);
+            }
+        }
 
         // Función para copiar la gráfica al portapapeles
         async function copiarGrafica() {

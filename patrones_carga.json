@@ -28,11 +28,11 @@
     "100": {"izquierda": 350, "derecha": 370}
   },
   "LH": {
-    "0": {"izquierda": 12, "derecha": 14},
-    "25": {"izquierda": 18, "derecha": 20},
-    "50": {"izquierda": 220, "derecha": 240},
-    "75": {"izquierda": 320, "derecha": 340},
-    "100": {"izquierda": 420, "derecha": 440}
+    "0": {"izquierda": 15, "derecha": 16},
+    "25": {"izquierda": 17, "derecha": 18},
+    "50": {"izquierda": 251, "derecha": 239},
+    "75": {"izquierda": 367, "derecha": 358},
+    "100": {"izquierda": 465, "derecha": 460}
   },
   "LI": {
     "0": {"izquierda": 20, "derecha": 22},

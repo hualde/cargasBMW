@@ -319,6 +319,41 @@
             border-bottom: 2px solid #667eea;
         }
 
+        .of-group {
+            margin-bottom: 15px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            border-left: 4px solid #667eea;
+        }
+
+        .of-header {
+            display: flex;
+            align-items: center;
+            padding: 8px;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 1em;
+            color: #333;
+            background: white;
+            border-radius: 5px;
+        }
+
+        .of-header input[type="checkbox"] {
+            margin-right: 10px;
+            cursor: pointer;
+            width: 20px;
+            height: 20px;
+        }
+
+        .of-piezas {
+            margin-left: 30px;
+        }
+
+        .of-piezas .legend-item {
+            margin-bottom: 3px;
+        }
+
         .loading {
             text-align: center;
             color: white;
@@ -719,7 +754,7 @@
                 }
             });
 
-            // Crear sección de Piezas - Derecha
+            // Crear sección de Piezas agrupadas por OF
             if (piezasDerecha.length > 0) {
                 const section = document.createElement('div');
                 section.className = 'legend-section';
@@ -728,9 +763,101 @@
                 sectionTitle.textContent = 'Piezas';
                 section.appendChild(sectionTitle);
 
+                // Agrupar piezas por OF
+                const piezasPorOF = {};
                 piezasDerecha.forEach(({ dataset, index, label }) => {
-                    const item = crearItemLeyenda(dataset, index, label);
-                    section.appendChild(item);
+                    // Extraer OF del label (formato: "Pieza X - OF Y - Derecha")
+                    const match = label.match(/OF (\d+)/);
+                    if (match) {
+                        const of = match[1];
+                        if (!piezasPorOF[of]) {
+                            piezasPorOF[of] = [];
+                        }
+                        piezasPorOF[of].push({ dataset, index, label });
+                    }
+                });
+
+                // Crear grupos por OF
+                Object.keys(piezasPorOF).sort((a, b) => parseInt(a) - parseInt(b)).forEach(of => {
+                    const ofGroup = document.createElement('div');
+                    ofGroup.className = 'of-group';
+
+                    // Header con checkbox para toda la OF
+                    const ofHeader = document.createElement('div');
+                    ofHeader.className = 'of-header';
+
+                    const ofCheckbox = document.createElement('input');
+                    ofCheckbox.type = 'checkbox';
+                    ofCheckbox.id = `of-checkbox-${of}`;
+                    
+                    // Función para actualizar el estado del checkbox de OF basado en las piezas
+                    const actualizarCheckboxOF = () => {
+                        // Verificar todas las piezas de esta OF (solo las de derecha, ya que controlan ambas)
+                        const todasVisibles = piezasPorOF[of].every(p => {
+                            const dataset = chart.data.datasets[p.index];
+                            return !dataset.hidden;
+                        });
+                        ofCheckbox.checked = todasVisibles;
+                    };
+                    
+                    // Inicializar estado del checkbox
+                    actualizarCheckboxOF();
+
+                    // Controlar todas las piezas de la OF
+                    ofCheckbox.addEventListener('change', function() {
+                        const isVisible = this.checked;
+                        piezasPorOF[of].forEach(({ index, label }) => {
+                            // Obtener el dataset relacionado (izquierda/derecha)
+                            const baseLabel = label.replace(' - Izquierda', '').replace(' - Derecha', '');
+                            let relatedIndex = -1;
+                            
+                            chart.data.datasets.forEach((ds, idx) => {
+                                if (label.includes(' - Derecha')) {
+                                    if (ds.label === `${baseLabel} - Izquierda`) {
+                                        relatedIndex = idx;
+                                    }
+                                } else if (label.includes(' - Izquierda')) {
+                                    if (ds.label === `${baseLabel} - Derecha`) {
+                                        relatedIndex = idx;
+                                    }
+                                }
+                            });
+
+                            chart.setDatasetVisibility(index, isVisible);
+                            if (relatedIndex !== -1) {
+                                chart.setDatasetVisibility(relatedIndex, isVisible);
+                            }
+                        });
+                        chart.update();
+                        // Actualizar checkboxes individuales de piezas
+                        piezasPorOF[of].forEach(({ index }) => {
+                            const checkbox = document.getElementById(`legend-checkbox-${index}`);
+                            if (checkbox) {
+                                checkbox.checked = isVisible;
+                            }
+                        });
+                    });
+
+                    const ofLabel = document.createElement('label');
+                    ofLabel.htmlFor = `of-checkbox-${of}`;
+                    ofLabel.textContent = `OF ${of}`;
+                    ofLabel.style.cursor = 'pointer';
+
+                    ofHeader.appendChild(ofCheckbox);
+                    ofHeader.appendChild(ofLabel);
+                    ofGroup.appendChild(ofHeader);
+
+                    // Contenedor para piezas de esta OF
+                    const ofPiezas = document.createElement('div');
+                    ofPiezas.className = 'of-piezas';
+
+                    piezasPorOF[of].forEach(({ dataset, index, label }) => {
+                        const item = crearItemLeyenda(dataset, index, label, actualizarCheckboxOF);
+                        ofPiezas.appendChild(item);
+                    });
+
+                    ofGroup.appendChild(ofPiezas);
+                    section.appendChild(ofGroup);
                 });
 
                 legendContainer.appendChild(section);
@@ -772,7 +899,7 @@
             }
         }
 
-        function crearItemLeyenda(dataset, index, label) {
+        function crearItemLeyenda(dataset, index, label, callbackActualizarOF = null) {
             const item = document.createElement('div');
             item.className = 'legend-item';
 
@@ -808,6 +935,11 @@
                     chart.setDatasetVisibility(relatedIndex, !isHidden);
                 }
                 chart.update();
+                
+                // Si hay callback para actualizar el checkbox de OF, llamarlo
+                if (callbackActualizarOF) {
+                    callbackActualizarOF();
+                }
             });
 
             const colorBox = document.createElement('div');

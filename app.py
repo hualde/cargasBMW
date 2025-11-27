@@ -108,8 +108,9 @@ def procesar_excel():
         if len(df) < 3:
             return jsonify({'error': 'El archivo Excel no tiene el formato esperado'}), 400
         
-        # Mapeo de NumPaso a porcentaje: 1=0%, 2=25%, 3=50%, 4=75%, 5=100%
-        paso_to_percent = {1: '0', 2: '25', 3: '50', 4: '75', 5: '100'}
+        # Mapeo de NumPaso a porcentaje: 0=0%, 1=25%, 2=50%, 3=75%, 4=100%
+        # Excluir NumPaso 5 según requerimiento
+        paso_to_percent = {0: '0', 1: '25', 2: '50', 3: '75', 4: '100'}
         
         # Procesar datos agrupados por Pieza y NumPaso
         # Usar un diccionario para acumular valores y contar ocurrencias
@@ -126,6 +127,11 @@ def procesar_excel():
             try:
                 pieza = int(row.iloc[1])  # Columna 1: Pieza
                 num_paso = int(row.iloc[4]) if pd.notna(row.iloc[4]) else None  # Columna 4: NumPaso
+                
+                # Excluir filas con NumPaso = 5
+                if num_paso == 5:
+                    continue
+                
                 carga_izda = float(row.iloc[5]) if pd.notna(row.iloc[5]) else 0  # Columna 5: CargaIZDA
                 carga_drch = float(row.iloc[6]) if pd.notna(row.iloc[6]) else 0  # Columna 6: CargaDRCH
                 

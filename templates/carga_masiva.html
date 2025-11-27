@@ -541,7 +541,17 @@
 
             // Preparar datasets para cada pieza
             const datasets = [];
-            const piezaIds = Object.keys(datosPiezas).sort((a, b) => parseInt(a) - parseInt(b));
+            // Ordenar por OF primero, luego por número de pieza
+            const piezaIds = Object.keys(datosPiezas).sort((a, b) => {
+                const piezaA = datosPiezas[a];
+                const piezaB = datosPiezas[b];
+                // Comparar primero por OF
+                if (piezaA.of !== piezaB.of) {
+                    return piezaA.of - piezaB.of;
+                }
+                // Si tienen el mismo OF, comparar por número de pieza
+                return piezaA.pieza - piezaB.pieza;
+            });
 
             piezaIds.forEach((piezaId, index) => {
                 const pieza = datosPiezas[piezaId];
@@ -971,7 +981,17 @@
 
             // Actualizar escala
             let allValues = [];
-            const piezaIds = Object.keys(datosPiezas);
+            // Ordenar por OF primero, luego por número de pieza
+            const piezaIds = Object.keys(datosPiezas).sort((a, b) => {
+                const piezaA = datosPiezas[a];
+                const piezaB = datosPiezas[b];
+                // Comparar primero por OF
+                if (piezaA.of !== piezaB.of) {
+                    return piezaA.of - piezaB.of;
+                }
+                // Si tienen el mismo OF, comparar por número de pieza
+                return piezaA.pieza - piezaB.pieza;
+            });
             piezaIds.forEach(piezaId => {
                 const pieza = datosPiezas[piezaId];
                 const cargas = pieza.cargas;

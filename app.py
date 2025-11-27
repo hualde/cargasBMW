@@ -126,10 +126,15 @@ def procesar_excel():
             
             try:
                 pieza = int(row.iloc[1])  # Columna 1: Pieza
+                of = int(row.iloc[3]) if pd.notna(row.iloc[3]) else None  # Columna 3: OF (Orden de Fabricación)
                 num_paso = int(row.iloc[4]) if pd.notna(row.iloc[4]) else None  # Columna 4: NumPaso
                 
                 # Excluir filas con NumPaso = 5
                 if num_paso == 5:
+                    continue
+                
+                # Validar que OF y num_paso sean válidos
+                if of is None or num_paso is None:
                     continue
                 
                 carga_izda = float(row.iloc[5]) if pd.notna(row.iloc[5]) else 0  # Columna 5: CargaIZDA
@@ -139,7 +144,8 @@ def procesar_excel():
                     continue
                 
                 percent = paso_to_percent[num_paso]
-                key = (pieza, percent)
+                # Clave incluye OF y Pieza para diferenciar piezas del mismo número pero de distintas OF
+                key = (of, pieza, percent)
                 
                 # Acumular valores para calcular promedio
                 if key not in datos_acumulados:
@@ -154,12 +160,17 @@ def procesar_excel():
             except (ValueError, IndexError) as e:
                 continue
         
-        # Calcular promedios y organizar por pieza
+        # Calcular promedios y organizar por OF y Pieza
         datos_por_pieza = {}
-        for (pieza, percent), valores in datos_acumulados.items():
-            if pieza not in datos_por_pieza:
-                datos_por_pieza[pieza] = {
-                    'referencia': f'Pieza {pieza}',
+        for (of, pieza, percent), valores in datos_acumulados.items():
+            # Clave única que combina OF y Pieza
+            clave_pieza = f'OF{of}_Pieza{pieza}'
+            
+            if clave_pieza not in datos_por_pieza:
+                datos_por_pieza[clave_pieza] = {
+                    'referencia': f'Pieza {pieza} - OF {of}',
+                    'of': of,
+                    'pieza': pieza,
                     'cargas': {
                         '0': {'izquierda': 0, 'derecha': 0},
                         '25': {'izquierda': 0, 'derecha': 0},
@@ -173,8 +184,8 @@ def procesar_excel():
             avg_izda = sum(valores['izquierda']) / len(valores['izquierda']) if valores['izquierda'] else 0
             avg_drch = sum(valores['derecha']) / len(valores['derecha']) if valores['derecha'] else 0
             
-            datos_por_pieza[pieza]['cargas'][percent]['izquierda'] = avg_izda
-            datos_por_pieza[pieza]['cargas'][percent]['derecha'] = avg_drch
+            datos_por_pieza[clave_pieza]['cargas'][percent]['izquierda'] = avg_izda
+            datos_por_pieza[clave_pieza]['cargas'][percent]['derecha'] = avg_drch
         
         # Convertir a formato JSON
         resultado = {

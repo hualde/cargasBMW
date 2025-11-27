@@ -203,6 +203,159 @@ def procesar_excel():
         traceback.print_exc()
         return jsonify({'error': f'Error al procesar el archivo: {str(e)}'}), 500
 
+@app.route('/api/generar-informe-masivo', methods=['POST'])
+def generar_informe_masivo():
+    """Generar un informe PDF para carga masiva con múltiples piezas"""
+    try:
+        data = request.json
+        referencia_excel = data.get('referencia_excel', None)
+        piezas = data.get('piezas', {})
+        referencia_bmw = data.get('referencia_bmw', None)
+        dispersion = data.get('dispersion', 0)
+        imagen_grafico = data.get('imagen_grafico', None)
+        
+        if not piezas:
+            return jsonify({'error': 'No hay piezas para generar el informe'}), 400
+        
+        # Crear el PDF en memoria
+        buffer = BytesIO()
+        doc = SimpleDocTemplate(
+            buffer, 
+            pagesize=A4,
+            leftMargin=15*mm,
+            rightMargin=15*mm,
+            topMargin=10*mm,
+            bottomMargin=15*mm
+        )
+        elements = []
+        
+        # Estilos
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            textColor=colors.HexColor('#667eea'),
+            spaceAfter=10,
+            alignment=TA_CENTER
+        )
+        
+        # Título
+        titulo = "Informe de Cargas Masivas"
+        if referencia_excel:
+            titulo += f" - {referencia_excel}"
+        elements.append(Paragraph(titulo, title_style))
+        elements.append(Spacer(1, 6))
+        
+        # Información general
+        info_data = [
+            ['Fecha:', datetime.now().strftime('%d/%m/%Y %H:%M:%S')],
+            ['Número de piezas:', str(len(piezas))]
+        ]
+        
+        if referencia_excel:
+            info_data.append(['Referencia Excel:', referencia_excel])
+        if referencia_bmw:
+            info_data.append(['Referencia BMW:', referencia_bmw])
+        if dispersion > 0:
+            info_data.append(['Dispersión:', f'{dispersion}%'])
+        
+        info_table = Table(info_data, colWidths=[60*mm, 130*mm])
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.grey),
+            ('TEXTCOLOR', (0, 0), (0, -1), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BACKGROUND', (1, 0), (1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        elements.append(info_table)
+        elements.append(Spacer(1, 10))
+        
+        # Tabla resumen de todas las piezas
+        resumen_headers = [['Pieza', '0%', '25%', '50%', '75%', '100%']]
+        resumen_data = resumen_headers.copy()
+        
+        # Ordenar piezas por OF y número de pieza
+        piezas_ordenadas = sorted(piezas.items(), key=lambda x: (
+            x[1].get('of', 0),
+            x[1].get('pieza', 0)
+        ))
+        
+        for pieza_id, pieza_info in piezas_ordenadas:
+            referencia = pieza_info.get('referencia', pieza_id)
+            cargas = pieza_info.get('cargas', {})
+            
+            # Calcular valores promedio para cada porcentaje
+            valores = []
+            for percent in ['0', '25', '50', '75', '100']:
+                if percent in cargas:
+                    izda = cargas[percent].get('izquierda', 0)
+                    drch = cargas[percent].get('derecha', 0)
+                    promedio = (abs(izda) + abs(drch)) / 2
+                    valores.append(f'{promedio:.1f}')
+                else:
+                    valores.append('-')
+            
+            resumen_data.append([referencia] + valores)
+        
+        resumen_table = Table(resumen_data, colWidths=[50*mm, 25*mm, 25*mm, 25*mm, 25*mm, 25*mm])
+        resumen_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+        ]))
+        elements.append(Paragraph('Resumen de Cargas por Pieza', styles['Heading2']))
+        elements.append(Spacer(1, 6))
+        elements.append(resumen_table)
+        elements.append(Spacer(1, 10))
+        
+        # Añadir gráfico si está disponible
+        if imagen_grafico:
+            try:
+                # Decodificar la imagen base64
+                imagen_data = imagen_grafico.split(',')[1] if ',' in imagen_grafico else imagen_grafico
+                imagen_bytes = base64.b64decode(imagen_data)
+                
+                # Crear objeto Image desde bytes
+                img_buffer = BytesIO(imagen_bytes)
+                img = Image(img_buffer, width=170*mm, height=120*mm)
+                img.hAlign = 'CENTER'
+                
+                elements.append(Paragraph('Gráfico de Cargas', styles['Heading2']))
+                elements.append(Spacer(1, 12))
+                elements.append(img)
+            except Exception as e:
+                print(f"Error al añadir gráfico al PDF: {e}")
+        
+        # Construir PDF
+        doc.build(elements)
+        buffer.seek(0)
+        
+        # Nombre del archivo
+        nombre_archivo = f"Informe_Masivo_{referencia_excel.replace(' ', '_') if referencia_excel else datetime.now().strftime('%Y%m%d')}.pdf"
+        
+        return send_file(
+            buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=nombre_archivo
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/generar-informe', methods=['POST'])
 def generar_informe():
     """Generar un informe PDF"""

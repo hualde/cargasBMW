@@ -407,6 +407,9 @@
             <label>Dispersión (%):</label>
             <input type="number" id="dispersion" step="0.1" min="0" value="0" oninput="actualizarGrafica()">
         </div>
+        <button class="upload-button" onclick="generarInformeMasivo()" style="width: auto; padding: 12px 30px; margin: 0;">
+            📄 Generar Informe
+        </button>
     </div>
 
     <div id="infoMessage" class="info-message" style="display: none;"></div>
@@ -425,6 +428,7 @@
         let datosPiezas = {};
         let patronActual = null;
         let referenciaActual = null;
+        let referenciaExcel = null;
         
         // Paleta de colores para las diferentes piezas
         const coloresPiezas = [
@@ -546,6 +550,7 @@
 
                 // Guardar datos de piezas
                 datosPiezas = data.piezas;
+                referenciaExcel = data.referencia_excel;
 
                 // Mostrar información
                 if (data.referencia_excel) {
@@ -1160,6 +1165,123 @@
 
             chart.update();
             crearLeyendaPersonalizada();
+        }
+
+        async function generarInformeMasivo() {
+            if (!chart || !datosPiezas || Object.keys(datosPiezas).length === 0) {
+                mostrarError('No hay datos para generar el informe. Por favor, carga un archivo Excel primero.');
+                return;
+            }
+
+            try {
+                // Capturar el gráfico como imagen
+                const canvas = document.getElementById('mainChart');
+                const imagenGrafico = canvas.toDataURL('image/png');
+
+                // Recopilar solo las piezas que están visibles en el gráfico
+                const piezasData = {};
+                const piezasVisibles = new Set();
+                
+                // Asegurar que el gráfico esté actualizado antes de verificar visibilidad
+                chart.update('none'); // Actualizar sin animación
+                
+                // Verificar qué piezas están visibles usando el método de Chart.js
+                chart.data.datasets.forEach((dataset, index) => {
+                    if (dataset.label && dataset.label.includes('Pieza')) {
+                        // Verificar si el dataset está visible (tanto hidden como isDatasetVisible)
+                        const isHidden = dataset.hidden === true;
+                        const isVisible = !isHidden && chart.isDatasetVisible(index);
+                        
+                        // Solo procesar datasets de derecha para evitar duplicados
+                        if (dataset.label.includes('Derecha') && isVisible && !isHidden) {
+                            // Extraer la referencia de la pieza del label
+                            const match = dataset.label.match(/Pieza (\d+) - OF (\d+)/);
+                            if (match) {
+                                const piezaNum = parseInt(match[1]);
+                                const of = parseInt(match[2]);
+                                const clavePieza = `OF${of}_Pieza${piezaNum}`;
+                                
+                                // Verificar que esta clave existe en datosPiezas
+                                if (datosPiezas[clavePieza]) {
+                                    piezasVisibles.add(clavePieza);
+                                } else {
+                                    console.warn('Pieza no encontrada en datosPiezas:', clavePieza);
+                                }
+                            }
+                        }
+                    }
+                });
+                
+                // Debug: mostrar qué piezas se están incluyendo
+                console.log('Piezas visibles detectadas:', Array.from(piezasVisibles));
+                console.log('Total piezas disponibles:', Object.keys(datosPiezas));
+
+                // Solo incluir piezas visibles
+                Object.keys(datosPiezas).forEach(piezaId => {
+                    if (piezasVisibles.has(piezaId)) {
+                        piezasData[piezaId] = {
+                            referencia: datosPiezas[piezaId].referencia,
+                            of: datosPiezas[piezaId].of,
+                            pieza: datosPiezas[piezaId].pieza,
+                            cargas: datosPiezas[piezaId].cargas
+                        };
+                    }
+                });
+                
+                // Verificar que no haya piezas ocultas incluidas
+                console.log('Piezas que se incluirán en el informe:', Object.keys(piezasData));
+
+                if (Object.keys(piezasData).length === 0) {
+                    mostrarError('No hay piezas visibles para generar el informe. Por favor, selecciona al menos una pieza.');
+                    return;
+                }
+
+                const dispersion = parseFloat(document.getElementById('dispersion').value) || 0;
+
+                // Preparar datos para enviar
+                const datosInforme = {
+                    referencia_excel: referenciaExcel,
+                    piezas: piezasData,
+                    referencia_bmw: referenciaActual || null,
+                    dispersion: dispersion,
+                    imagen_grafico: imagenGrafico
+                };
+
+                // Llamar al endpoint para generar el PDF
+                const response = await fetch('/api/generar-informe-masivo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(datosInforme)
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Error al generar el informe');
+                }
+
+                // Descargar el PDF
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                const nombreArchivo = referenciaExcel 
+                    ? `Informe_Masivo_${referenciaExcel}.pdf`
+                    : `Informe_Masivo_${new Date().toISOString().split('T')[0]}.pdf`;
+                a.download = nombreArchivo;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+
+                // Mostrar confirmación
+                mostrarInfo('Informe generado correctamente');
+
+            } catch (err) {
+                console.error('Error al generar informe:', err);
+                mostrarError('Error al generar el informe: ' + err.message);
+            }
         }
     </script>
 </body>

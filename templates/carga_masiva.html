@@ -1,0 +1,813 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carga Masiva de Datos</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            max-width: 1400px;
+            margin: 0 auto 20px auto;
+            text-align: center;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .back-button {
+            display: inline-block;
+            background: rgba(255, 255, 255, 0.95);
+            color: #667eea;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 12px 30px;
+            font-size: 1em;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            text-decoration: none;
+            margin-bottom: 20px;
+        }
+
+        .back-button:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .upload-section {
+            max-width: 600px;
+            margin: 0 auto 30px auto;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .upload-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-input-wrapper input[type="file"] {
+            width: 100%;
+            padding: 15px;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            background: #f8f9fa;
+            cursor: pointer;
+            font-size: 1em;
+        }
+
+        .file-input-wrapper input[type="file"]:hover {
+            border-color: #764ba2;
+            background: #e9ecef;
+        }
+
+        .upload-button {
+            width: 100%;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1.1em;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            margin-top: 15px;
+        }
+
+        .upload-button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .upload-button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .controls-section {
+            max-width: 1400px;
+            margin: 0 auto 30px auto;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px 20px;
+            border-radius: 50px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .control-group label {
+            color: #333;
+            font-weight: bold;
+            font-size: 1em;
+            white-space: nowrap;
+        }
+
+        .control-group input,
+        .control-group select {
+            padding: 10px;
+            border: 2px solid #dee2e6;
+            border-radius: 5px;
+            font-size: 1em;
+            background: white;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+
+        .dropdown-button {
+            background: rgba(255, 255, 255, 0.95);
+            color: #667eea;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            padding: 12px 30px;
+            font-size: 1em;
+            font-weight: bold;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .dropdown-button:hover {
+            background: white;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            background: white;
+            min-width: 200px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            z-index: 1000;
+            margin-top: 10px;
+            left: 50%;
+            transform: translateX(-50%);
+            overflow: hidden;
+        }
+
+        .dropdown-content.show {
+            display: block;
+        }
+
+        .dropdown-item {
+            color: #495057;
+            padding: 15px 20px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            font-weight: 500;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .dropdown-item:hover {
+            background-color: #f8f9fa;
+            color: #667eea;
+        }
+
+        .info-message {
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 10px;
+            text-align: center;
+            color: #333;
+        }
+
+        .chart-container-wrapper {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            padding: 30px;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 600px;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2em;
+            padding: 20px;
+        }
+
+        .error-message {
+            max-width: 600px;
+            margin: 0 auto 20px auto;
+            padding: 15px;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 10px;
+            color: #721c24;
+            text-align: center;
+        }
+
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Carga Masiva de Datos</h1>
+        <a href="/" class="back-button">← Volver a la pantalla principal</a>
+    </div>
+
+    <div class="upload-section">
+        <h2>Cargar Archivo Excel</h2>
+        <div class="file-input-wrapper">
+            <input type="file" id="excelFile" accept=".xlsx,.xls" />
+        </div>
+        <button class="upload-button" onclick="procesarArchivo()" id="uploadBtn">Procesar Archivo</button>
+    </div>
+
+    <div id="controlsSection" class="controls-section hidden">
+        <div class="dropdown">
+            <button class="dropdown-button" onclick="toggleDropdown()">Elegir referencia BMW</button>
+            <div id="dropdownMenu" class="dropdown-content">
+                <div class="dropdown-item" onclick="aplicarPatron('LA')">LA</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LB')">LB</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LE')">LE</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LG')">LG</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LH')">LH</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LI')">LI</div>
+            </div>
+        </div>
+        <div class="control-group">
+            <label>Dispersión (%):</label>
+            <input type="number" id="dispersion" step="0.1" min="0" value="0" oninput="actualizarGrafica()">
+        </div>
+    </div>
+
+    <div id="infoMessage" class="info-message" style="display: none;"></div>
+    <div id="errorMessage" class="error-message" style="display: none;"></div>
+    <div id="loading" class="loading" style="display: none;">Procesando archivo...</div>
+
+    <div id="chartContainerWrapper" class="chart-container-wrapper hidden">
+        <div class="chart-container">
+            <canvas id="mainChart"></canvas>
+        </div>
+    </div>
+
+    <script>
+        let chart = null;
+        let datosPiezas = {};
+        let patronActual = null;
+        let referenciaActual = null;
+        
+        // Paleta de colores para las diferentes piezas
+        const coloresPiezas = [
+            'rgba(102, 126, 234, 1)',   // Azul
+            'rgba(255, 99, 132, 1)',    // Rosa
+            'rgba(54, 162, 235, 1)',   // Azul claro
+            'rgba(255, 206, 86, 1)',   // Amarillo
+            'rgba(75, 192, 192, 1)',   // Turquesa
+            'rgba(153, 102, 255, 1)',  // Púrpura
+            'rgba(255, 159, 64, 1)',   // Naranja
+            'rgba(199, 199, 199, 1)',  // Gris
+            'rgba(83, 102, 255, 1)',   // Azul índigo
+            'rgba(255, 99, 255, 1)',   // Magenta
+            'rgba(99, 255, 132, 1)',   // Verde
+            'rgba(255, 132, 99, 1)',   // Salmón
+        ];
+
+        function mostrarError(mensaje) {
+            const errorDiv = document.getElementById('errorMessage');
+            errorDiv.textContent = mensaje;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
+        }
+
+        function mostrarInfo(mensaje) {
+            const infoDiv = document.getElementById('infoMessage');
+            infoDiv.textContent = mensaje;
+            infoDiv.style.display = 'block';
+        }
+
+        function ocultarInfo() {
+            document.getElementById('infoMessage').style.display = 'none';
+        }
+
+        function toggleDropdown() {
+            const dropdown = document.getElementById('dropdownMenu');
+            dropdown.classList.toggle('show');
+        }
+
+        // Cerrar el menú desplegable al hacer clic fuera
+        window.onclick = function(event) {
+            if (!event.target.matches('.dropdown-button')) {
+                const dropdowns = document.getElementsByClassName('dropdown-content');
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.classList.contains('show')) {
+                        openDropdown.classList.remove('show');
+                    }
+                }
+            }
+        }
+
+        async function aplicarPatron(patronId) {
+            try {
+                document.getElementById('dropdownMenu').classList.remove('show');
+                
+                const response = await fetch(`/api/patrones/${patronId}`);
+                if (!response.ok) {
+                    throw new Error('Error al cargar el patrón');
+                }
+                
+                patronActual = await response.json();
+                referenciaActual = patronId;
+                
+                actualizarGrafica();
+                
+            } catch (err) {
+                console.error('Error al aplicar patrón:', err);
+                mostrarError('Error al cargar el patrón: ' + err.message);
+            }
+        }
+
+        async function procesarArchivo() {
+            const fileInput = document.getElementById('excelFile');
+            const uploadBtn = document.getElementById('uploadBtn');
+            const loading = document.getElementById('loading');
+            const chartWrapper = document.getElementById('chartContainerWrapper');
+            const controlsSection = document.getElementById('controlsSection');
+
+            if (!fileInput.files || fileInput.files.length === 0) {
+                mostrarError('Por favor, selecciona un archivo Excel');
+                return;
+            }
+
+            // Limpiar gráfica anterior
+            if (chart) {
+                chart.destroy();
+                chart = null;
+            }
+            datosPiezas = {};
+            patronActual = null;
+            referenciaActual = null;
+
+            uploadBtn.disabled = true;
+            loading.style.display = 'block';
+            ocultarInfo();
+            chartWrapper.classList.add('hidden');
+            controlsSection.classList.add('hidden');
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/api/procesar-excel', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Error al procesar el archivo');
+                }
+
+                loading.style.display = 'none';
+                uploadBtn.disabled = false;
+
+                // Guardar datos de piezas
+                datosPiezas = data.piezas;
+
+                // Mostrar información
+                if (data.referencia_excel) {
+                    mostrarInfo(`Archivo procesado correctamente. Referencia: ${data.referencia_excel}. ${Object.keys(data.piezas).length} pieza(s) encontrada(s).`);
+                } else {
+                    mostrarInfo(`Archivo procesado correctamente. ${Object.keys(data.piezas).length} pieza(s) encontrada(s).`);
+                }
+
+                // Mostrar controles y gráfica
+                controlsSection.classList.remove('hidden');
+                chartWrapper.classList.remove('hidden');
+
+                // Crear gráfica
+                crearGrafica();
+
+            } catch (error) {
+                loading.style.display = 'none';
+                uploadBtn.disabled = false;
+                mostrarError('Error: ' + error.message);
+                console.error('Error:', error);
+            }
+        }
+
+        function crearGrafica() {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            const percentages = ['0', '25', '50', '75', '100'];
+            const labels = ['0%', '25%', '50%', '75%', '100%'];
+
+            // Preparar datasets para cada pieza
+            const datasets = [];
+            const piezaIds = Object.keys(datosPiezas).sort((a, b) => parseInt(a) - parseInt(b));
+
+            piezaIds.forEach((piezaId, index) => {
+                const pieza = datosPiezas[piezaId];
+                const cargas = pieza.cargas;
+                const color = coloresPiezas[index % coloresPiezas.length];
+                const colorAlpha = color.replace('1)', '0.1)');
+
+                // Datos izquierda
+                const izquierdaData = [];
+                const derechaData = [];
+
+                percentages.forEach(percent => {
+                    if (cargas[percent]) {
+                        izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
+                        derechaData.push(Math.abs(cargas[percent].derecha || 0));
+                    } else {
+                        izquierdaData.push(0);
+                        derechaData.push(0);
+                    }
+                });
+
+                datasets.push({
+                    label: `${pieza.referencia} - Izquierda`,
+                    data: izquierdaData,
+                    borderColor: color,
+                    backgroundColor: colorAlpha,
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                });
+
+                datasets.push({
+                    label: `${pieza.referencia} - Derecha`,
+                    data: derechaData,
+                    borderColor: color,
+                    backgroundColor: colorAlpha,
+                    borderWidth: 2,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 4,
+                    pointHoverRadius: 6,
+                    pointBackgroundColor: color,
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                });
+            });
+
+            // Calcular valor máximo para la escala
+            let allValues = [];
+            piezaIds.forEach(piezaId => {
+                const pieza = datosPiezas[piezaId];
+                const cargas = pieza.cargas;
+                percentages.forEach(percent => {
+                    if (cargas[percent]) {
+                        allValues.push(Math.abs(cargas[percent].izquierda || 0));
+                        allValues.push(Math.abs(cargas[percent].derecha || 0));
+                    }
+                });
+            });
+
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Porcentaje',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            ticks: {
+                                callback: function(value) {
+                                    const absValue = Math.abs(value);
+                                    if (Math.abs(absValue - Math.round(absValue)) < 0.0001) {
+                                        return Math.round(absValue);
+                                    }
+                                    return absValue.toFixed(1);
+                                }
+                            },
+                            grid: {
+                                display: true,
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Cargas (daN)',
+                                font: {
+                                    size: 14,
+                                    weight: 'bold'
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 12
+                                },
+                                padding: 15,
+                                usePointStyle: true,
+                                filter: function(item) {
+                                    // Mostrar solo las líneas de derecha en la leyenda para simplificar
+                                    return item.text.includes('Derecha') || item.text.includes('Patrón') || item.text.includes('Límite');
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    label += Math.abs(context.parsed.y);
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            actualizarGrafica();
+        }
+
+        function actualizarGrafica() {
+            if (!chart || !datosPiezas) return;
+
+            const percentages = ['0', '25', '50', '75', '100'];
+            const dispersion = parseFloat(document.getElementById('dispersion').value) || 0;
+
+            // Eliminar datasets de patrón y límites anteriores
+            const datasetsToRemove = [];
+            chart.data.datasets.forEach((dataset, index) => {
+                if (dataset.label && (dataset.label.includes('Patrón') || dataset.label.includes('Límite'))) {
+                    datasetsToRemove.push(index);
+                }
+            });
+
+            // Eliminar en orden inverso para no afectar los índices
+            datasetsToRemove.reverse().forEach(index => {
+                chart.data.datasets.splice(index, 1);
+            });
+
+            // Añadir patrón si está seleccionado
+            if (patronActual) {
+                const patronIzquierdaData = [];
+                const patronDerechaData = [];
+
+                percentages.forEach(percent => {
+                    if (patronActual[percent]) {
+                        patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
+                        patronDerechaData.push(Math.abs(patronActual[percent].derecha));
+                    } else {
+                        patronIzquierdaData.push(null);
+                        patronDerechaData.push(null);
+                    }
+                });
+
+                chart.data.datasets.push({
+                    label: `Patrón ${referenciaActual} - Izquierda`,
+                    data: patronIzquierdaData,
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                });
+
+                chart.data.datasets.push({
+                    label: `Patrón ${referenciaActual} - Derecha`,
+                    data: patronDerechaData,
+                    borderColor: 'rgba(255, 99, 132, 1)',
+                    backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 5,
+                    pointHoverRadius: 7,
+                    pointBackgroundColor: 'rgba(255, 99, 132, 1)',
+                    pointBorderColor: '#fff',
+                    pointBorderWidth: 2
+                });
+
+                // Añadir límites de dispersión si hay dispersión
+                if (dispersion > 0) {
+                    const limiteSuperiorIzquierda = [];
+                    const limiteSuperiorDerecha = [];
+                    const limiteInferiorIzquierda = [];
+                    const limiteInferiorDerecha = [];
+
+                    percentages.forEach(percent => {
+                        if (patronActual[percent]) {
+                            const factor = 1 + (dispersion / 100);
+                            const factorInferior = 1 - (dispersion / 100);
+
+                            limiteSuperiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factor));
+                            limiteInferiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factorInferior));
+
+                            limiteSuperiorDerecha.push(Math.abs(patronActual[percent].derecha * factor));
+                            limiteInferiorDerecha.push(Math.abs(patronActual[percent].derecha * factorInferior));
+                        } else {
+                            limiteSuperiorIzquierda.push(null);
+                            limiteSuperiorDerecha.push(null);
+                            limiteInferiorIzquierda.push(null);
+                            limiteInferiorDerecha.push(null);
+                        }
+                    });
+
+                    // Usar el mismo color que el patrón
+                    const colorPatron = 'rgba(255, 99, 132, 0.5)';
+                    const colorPatronRef = chart.data.datasets[chart.data.datasets.length - 2].borderColor; // Color del patrón
+
+                    chart.data.datasets.push({
+                        label: 'Límite Superior Izquierda',
+                        data: limiteSuperiorIzquierda,
+                        borderColor: colorPatronRef,
+                        backgroundColor: 'rgba(255, 99, 132, 0.05)',
+                        borderWidth: 2,
+                        borderDash: [3, 3],
+                        fill: false,
+                        tension: 0,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        hidden: false
+                    });
+
+                    chart.data.datasets.push({
+                        label: 'Límite Inferior Izquierda',
+                        data: limiteInferiorIzquierda,
+                        borderColor: colorPatronRef,
+                        backgroundColor: 'rgba(255, 99, 132, 0.05)',
+                        borderWidth: 2,
+                        borderDash: [3, 3],
+                        fill: false,
+                        tension: 0,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        hidden: false
+                    });
+
+                    chart.data.datasets.push({
+                        label: 'Límite Superior Derecha',
+                        data: limiteSuperiorDerecha,
+                        borderColor: colorPatronRef,
+                        backgroundColor: 'rgba(255, 99, 132, 0.05)',
+                        borderWidth: 2,
+                        borderDash: [3, 3],
+                        fill: false,
+                        tension: 0,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        hidden: false
+                    });
+
+                    chart.data.datasets.push({
+                        label: 'Límite Inferior Derecha',
+                        data: limiteInferiorDerecha,
+                        borderColor: colorPatronRef,
+                        backgroundColor: 'rgba(255, 99, 132, 0.05)',
+                        borderWidth: 2,
+                        borderDash: [3, 3],
+                        fill: false,
+                        tension: 0,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        hidden: false
+                    });
+                }
+            }
+
+            // Actualizar escala
+            let allValues = [];
+            const piezaIds = Object.keys(datosPiezas);
+            piezaIds.forEach(piezaId => {
+                const pieza = datosPiezas[piezaId];
+                const cargas = pieza.cargas;
+                percentages.forEach(percent => {
+                    if (cargas[percent]) {
+                        allValues.push(Math.abs(cargas[percent].izquierda || 0));
+                        allValues.push(Math.abs(cargas[percent].derecha || 0));
+                    }
+                });
+            });
+
+            if (patronActual) {
+                percentages.forEach(percent => {
+                    if (patronActual[percent]) {
+                        allValues.push(Math.abs(patronActual[percent].izquierda));
+                        allValues.push(Math.abs(patronActual[percent].derecha));
+                    }
+                });
+
+                if (dispersion > 0) {
+                    chart.data.datasets.forEach(dataset => {
+                        if (dataset.data && dataset.label && dataset.label.includes('Límite')) {
+                            dataset.data.forEach(val => {
+                                if (val !== null) allValues.push(Math.abs(val));
+                            });
+                        }
+                    });
+                }
+            }
+
+            const maxValue = Math.max(...allValues, 0);
+            chart.options.scales.y.max = maxValue * 1.1;
+            chart.options.scales.y.min = -maxValue * 1.1;
+
+            chart.update();
+        }
+    </script>
+</body>
+</html>

@@ -11,6 +11,8 @@ import os
 from io import BytesIO
 from datetime import datetime
 import base64
+import pandas as pd
+import re
 
 app = Flask(__name__)
 
@@ -72,6 +74,117 @@ def get_patron(patron_id):
             return jsonify({'error': 'Patrón no encontrado'}), 404
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+@app.route('/carga-masiva')
+def carga_masiva():
+    """Vista para carga masiva de datos desde Excel"""
+    return render_template('carga_masiva.html')
+
+@app.route('/api/procesar-excel', methods=['POST'])
+def procesar_excel():
+    """Procesar archivo Excel y extraer datos de cargas"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No se proporcionó ningún archivo'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No se seleccionó ningún archivo'}), 400
+        
+        # Leer el Excel
+        df = pd.read_excel(file, header=None)
+        
+        # Extraer referencia del título (fila 0, columna 0)
+        referencia_excel = None
+        if len(df) > 0 and pd.notna(df.iloc[0, 0]):
+            titulo = str(df.iloc[0, 0])
+            # Buscar patrón de referencia en el título
+            match = re.search(r'Referencia\s+([a-zA-Z0-9]+)', titulo)
+            if match:
+                referencia_excel = match.group(1)
+        
+        # Los encabezados están en la fila 2 (índice 2)
+        # Datos empiezan en la fila 3 (índice 3)
+        if len(df) < 3:
+            return jsonify({'error': 'El archivo Excel no tiene el formato esperado'}), 400
+        
+        # Mapeo de NumPaso a porcentaje: 1=0%, 2=25%, 3=50%, 4=75%, 5=100%
+        paso_to_percent = {1: '0', 2: '25', 3: '50', 4: '75', 5: '100'}
+        
+        # Procesar datos agrupados por Pieza y NumPaso
+        # Usar un diccionario para acumular valores y contar ocurrencias
+        datos_acumulados = {}
+        
+        # Iterar desde la fila 3 (índice 3) en adelante
+        for idx in range(3, len(df)):
+            row = df.iloc[idx]
+            
+            # Verificar que la fila tenga datos válidos
+            if pd.isna(row.iloc[1]):  # Columna Pieza
+                continue
+            
+            try:
+                pieza = int(row.iloc[1])  # Columna 1: Pieza
+                num_paso = int(row.iloc[4]) if pd.notna(row.iloc[4]) else None  # Columna 4: NumPaso
+                carga_izda = float(row.iloc[5]) if pd.notna(row.iloc[5]) else 0  # Columna 5: CargaIZDA
+                carga_drch = float(row.iloc[6]) if pd.notna(row.iloc[6]) else 0  # Columna 6: CargaDRCH
+                
+                if num_paso not in paso_to_percent:
+                    continue
+                
+                percent = paso_to_percent[num_paso]
+                key = (pieza, percent)
+                
+                # Acumular valores para calcular promedio
+                if key not in datos_acumulados:
+                    datos_acumulados[key] = {
+                        'izquierda': [],
+                        'derecha': []
+                    }
+                
+                datos_acumulados[key]['izquierda'].append(carga_izda)
+                datos_acumulados[key]['derecha'].append(carga_drch)
+                
+            except (ValueError, IndexError) as e:
+                continue
+        
+        # Calcular promedios y organizar por pieza
+        datos_por_pieza = {}
+        for (pieza, percent), valores in datos_acumulados.items():
+            if pieza not in datos_por_pieza:
+                datos_por_pieza[pieza] = {
+                    'referencia': f'Pieza {pieza}',
+                    'cargas': {
+                        '0': {'izquierda': 0, 'derecha': 0},
+                        '25': {'izquierda': 0, 'derecha': 0},
+                        '50': {'izquierda': 0, 'derecha': 0},
+                        '75': {'izquierda': 0, 'derecha': 0},
+                        '100': {'izquierda': 0, 'derecha': 0}
+                    }
+                }
+            
+            # Calcular promedio
+            avg_izda = sum(valores['izquierda']) / len(valores['izquierda']) if valores['izquierda'] else 0
+            avg_drch = sum(valores['derecha']) / len(valores['derecha']) if valores['derecha'] else 0
+            
+            datos_por_pieza[pieza]['cargas'][percent]['izquierda'] = avg_izda
+            datos_por_pieza[pieza]['cargas'][percent]['derecha'] = avg_drch
+        
+        # Convertir a formato JSON
+        resultado = {
+            'referencia_excel': referencia_excel,
+            'piezas': {}
+        }
+        
+        for pieza, datos in sorted(datos_por_pieza.items()):
+            resultado['piezas'][str(pieza)] = datos
+        
+        return jsonify(resultado)
+        
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': f'Error al procesar el archivo: {str(e)}'}), 500
 
 @app.route('/api/generar-informe', methods=['POST'])
 def generar_informe():

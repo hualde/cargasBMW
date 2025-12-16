@@ -82,7 +82,7 @@ def carga_masiva():
 
 @app.route('/api/procesar-excel', methods=['POST'])
 def procesar_excel():
-    """Procesar archivo Excel y extraer datos de cargas"""
+    """Procesar archivo Excel y extraer datos de par (Nm)"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No se proporcionó ningún archivo'}), 400
@@ -91,8 +91,14 @@ def procesar_excel():
         if file.filename == '':
             return jsonify({'error': 'No se seleccionó ningún archivo'}), 400
         
-        # Leer el Excel
-        df = pd.read_excel(file, header=None)
+        # Leer solo la pestaña "Análisis de test"
+        try:
+            df = pd.read_excel(file, sheet_name='Análisis de test', header=None)
+        except ValueError:
+            # Si no existe la pestaña, intentar leer la primera
+            file.seek(0)  # Resetear el archivo
+            df = pd.read_excel(file, header=None)
+            return jsonify({'error': 'No se encontró la pestaña "Análisis de test"'}), 400
         
         # Extraer referencia del título (fila 0, columna 0)
         referencia_excel = None
@@ -117,17 +123,34 @@ def procesar_excel():
         datos_acumulados = {}
         
         # Iterar desde la fila 3 (índice 3) en adelante
+        # Detener cuando encontremos líneas en blanco (todas las columnas relevantes vacías)
         for idx in range(3, len(df)):
             row = df.iloc[idx]
             
-            # Verificar que la fila tenga datos válidos
-            if pd.isna(row.iloc[1]):  # Columna Pieza
+            # Verificar si la fila está completamente vacía o tiene líneas en blanco
+            # Verificar columnas clave: Pieza (columna B, índice 1), OF (columna D, índice 3), NumPaso (columna E, índice 4)
+            # y los valores de par (columnas H e I, índices 7 y 8)
+            # Si todas las columnas relevantes están vacías, detener el procesamiento
+            try:
+                if (pd.isna(row.iloc[1]) and pd.isna(row.iloc[3]) and pd.isna(row.iloc[4]) and 
+                    pd.isna(row.iloc[7]) and pd.isna(row.iloc[8])):
+                    # Si todas las columnas relevantes están vacías, detener el procesamiento
+                    break
+            except IndexError:
+                # Si no hay suficientes columnas, detener el procesamiento
+                break
+            
+            # Verificar que la fila tenga datos válidos en Pieza
+            try:
+                if pd.isna(row.iloc[1]):  # Columna Pieza
+                    continue
+            except IndexError:
                 continue
             
             try:
-                pieza = int(row.iloc[1])  # Columna 1: Pieza
-                of = int(row.iloc[3]) if pd.notna(row.iloc[3]) else None  # Columna 3: OF (Orden de Fabricación)
-                num_paso = int(row.iloc[4]) if pd.notna(row.iloc[4]) else None  # Columna 4: NumPaso
+                pieza = int(row.iloc[1])  # Columna B (índice 1): Pieza
+                of = int(row.iloc[3]) if pd.notna(row.iloc[3]) else None  # Columna D (índice 3): OF (Orden de Fabricación)
+                num_paso = int(row.iloc[4]) if pd.notna(row.iloc[4]) else None  # Columna E (índice 4): NumPaso
                 
                 # Excluir filas con NumPaso = 5
                 if num_paso == 5:
@@ -137,8 +160,10 @@ def procesar_excel():
                 if of is None or num_paso is None:
                     continue
                 
-                carga_izda = float(row.iloc[5]) if pd.notna(row.iloc[5]) else 0  # Columna 5: CargaIZDA
-                carga_drch = float(row.iloc[6]) if pd.notna(row.iloc[6]) else 0  # Columna 6: CargaDRCH
+                # Columnas H e I (índices 7 y 8) contienen los valores de par en Nm
+                # Redondear a 1 decimal para mantener la precisión del Excel
+                par_izda = round(float(row.iloc[7]), 1) if pd.notna(row.iloc[7]) else 0  # Columna H (índice 7): Par Izquierda
+                par_drch = round(float(row.iloc[8]), 1) if pd.notna(row.iloc[8]) else 0  # Columna I (índice 8): Par Derecha
                 
                 if num_paso not in paso_to_percent:
                     continue
@@ -147,15 +172,12 @@ def procesar_excel():
                 # Clave incluye OF y Pieza para diferenciar piezas del mismo número pero de distintas OF
                 key = (of, pieza, percent)
                 
-                # Acumular valores para calcular promedio
-                if key not in datos_acumulados:
-                    datos_acumulados[key] = {
-                        'izquierda': [],
-                        'derecha': []
-                    }
-                
-                datos_acumulados[key]['izquierda'].append(carga_izda)
-                datos_acumulados[key]['derecha'].append(carga_drch)
+                # Si hay múltiples filas con el mismo OF, Pieza y NumPaso, se sobrescribe con la última
+                # (no se promedia, se toma el último valor encontrado)
+                datos_acumulados[key] = {
+                    'izquierda': [par_izda],  # Solo guardar el último valor
+                    'derecha': [par_drch]
+                }
                 
             except (ValueError, IndexError) as e:
                 continue
@@ -180,9 +202,9 @@ def procesar_excel():
                     }
                 }
             
-            # Calcular promedio
-            avg_izda = sum(valores['izquierda']) / len(valores['izquierda']) if valores['izquierda'] else 0
-            avg_drch = sum(valores['derecha']) / len(valores['derecha']) if valores['derecha'] else 0
+            # Calcular promedio y redondear a 1 decimal
+            avg_izda = round(sum(valores['izquierda']) / len(valores['izquierda']), 1) if valores['izquierda'] else 0
+            avg_drch = round(sum(valores['derecha']) / len(valores['derecha']), 1) if valores['derecha'] else 0
             
             datos_por_pieza[clave_pieza]['cargas'][percent]['izquierda'] = avg_izda
             datos_por_pieza[clave_pieza]['cargas'][percent]['derecha'] = avg_drch
@@ -241,7 +263,7 @@ def generar_informe_masivo():
         )
         
         # Título
-        titulo = "Informe de Cargas Masivas"
+        titulo = "Informe de Par Masivo"
         if referencia_excel:
             titulo += f" - {referencia_excel}"
         elements.append(Paragraph(titulo, title_style))
@@ -315,7 +337,7 @@ def generar_informe_masivo():
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
         ]))
-        elements.append(Paragraph('Resumen de Cargas por Pieza', styles['Heading2']))
+        elements.append(Paragraph('Resumen de Par por Pieza', styles['Heading2']))
         elements.append(Spacer(1, 6))
         elements.append(resumen_table)
         elements.append(Spacer(1, 10))
@@ -332,7 +354,7 @@ def generar_informe_masivo():
                 img = Image(img_buffer, width=170*mm, height=120*mm)
                 img.hAlign = 'CENTER'
                 
-                elements.append(Paragraph('Gráfico de Cargas', styles['Heading2']))
+                elements.append(Paragraph('Gráfico de Par', styles['Heading2']))
                 elements.append(Spacer(1, 12))
                 elements.append(img)
             except Exception as e:
@@ -392,7 +414,7 @@ def generar_informe():
         )
         
         # Título
-        elements.append(Paragraph(f"Informe de Cargas - {referencia}", title_style))
+        elements.append(Paragraph(f"Informe de Par - {referencia}", title_style))
         elements.append(Spacer(1, 6))
         
         # Información general
@@ -424,7 +446,7 @@ def generar_informe():
         elements.append(Spacer(1, 10))
         
         # Tabla de cargas
-        carga_headers = [['Porcentaje', 'Izquierda (daN)', 'Derecha (daN)']]
+        carga_headers = [['Porcentaje', 'Izquierda (Nm)', 'Derecha (Nm)']]
         carga_data = carga_headers.copy()
         
         for percent in ['0', '25', '50', '75', '100']:
@@ -447,7 +469,7 @@ def generar_informe():
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
         ]))
-        elements.append(Paragraph('Datos de Cargas', styles['Heading2']))
+        elements.append(Paragraph('Datos de Par', styles['Heading2']))
         elements.append(Spacer(1, 6))
         elements.append(carga_table)
         elements.append(Spacer(1, 10))
@@ -464,7 +486,7 @@ def generar_informe():
                 img = Image(img_buffer, width=170*mm, height=120*mm)
                 img.hAlign = 'CENTER'
                 
-                elements.append(Paragraph('Gráfico de Cargas', styles['Heading2']))
+                elements.append(Paragraph('Gráfico de Par', styles['Heading2']))
                 elements.append(Spacer(1, 12))
                 elements.append(img)
             except Exception as e:

@@ -1,17 +1,17 @@
 {
   "LA": {
-    "0": {"izquierda": 10, "derecha": 12},
-    "25": {"izquierda": 15, "derecha": 18},
-    "50": {"izquierda": 200, "derecha": 220},
-    "75": {"izquierda": 300, "derecha": 320},
-    "100": {"izquierda": 400, "derecha": 420}
+    "0": {"izquierda": 15, "derecha": 16},
+    "25": {"izquierda": 17, "derecha": 18},
+    "50": {"izquierda": 251, "derecha": 239},
+    "75": {"izquierda": 367, "derecha": 358},
+    "100": {"izquierda": 465, "derecha": 460}
   },
   "LB": {
-    "0": {"izquierda": 8, "derecha": 10},
-    "25": {"izquierda": 12, "derecha": 15},
-    "50": {"izquierda": 180, "derecha": 200},
-    "75": {"izquierda": 280, "derecha": 300},
-    "100": {"izquierda": 380, "derecha": 400}
+   "0": {"izquierda": 15, "derecha": 16},
+    "25": {"izquierda": 17, "derecha": 18},
+    "50": {"izquierda": 251, "derecha": 239},
+    "75": {"izquierda": 367, "derecha": 358},
+    "100": {"izquierda": 465, "derecha": 460}
   },
   "LE": {
     "0": {"izquierda": 15, "derecha": 16},
@@ -21,11 +21,11 @@
     "100": {"izquierda": 450, "derecha": 460}
   },
   "LG": {
-    "0": {"izquierda": 5, "derecha": 7},
-    "25": {"izquierda": 10, "derecha": 12},
-    "50": {"izquierda": 150, "derecha": 170},
-    "75": {"izquierda": 250, "derecha": 270},
-    "100": {"izquierda": 350, "derecha": 370}
+    "0": {"izquierda": 15, "derecha": 16},
+    "25": {"izquierda": 17, "derecha": 18},
+    "50": {"izquierda": 251, "derecha": 239},
+    "75": {"izquierda": 367, "derecha": 358},
+    "100": {"izquierda": 465, "derecha": 460}
   },
   "LH": {
     "0": {"izquierda": 15, "derecha": 16},
@@ -35,11 +35,11 @@
     "100": {"izquierda": 465, "derecha": 460}
   },
   "LI": {
-    "0": {"izquierda": 20, "derecha": 22},
-    "25": {"izquierda": 25, "derecha": 28},
-    "50": {"izquierda": 280, "derecha": 300},
-    "75": {"izquierda": 380, "derecha": 400},
-    "100": {"izquierda": 480, "derecha": 500}
+    "0": {"izquierda": 15, "derecha": 16},
+    "25": {"izquierda": 17, "derecha": 18},
+    "50": {"izquierda": 251, "derecha": 239},
+    "75": {"izquierda": 367, "derecha": 358},
+    "100": {"izquierda": 465, "derecha": 460}
   }
 }
 

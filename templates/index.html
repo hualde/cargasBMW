@@ -301,6 +301,12 @@
             cursor: pointer;
             transition: all 0.3s ease;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+            white-space: nowrap;
+        }
+        
+        #dropdownButton {
+            min-width: 200px;
+            font-size: 0.95em;
         }
 
         button:hover {
@@ -317,7 +323,7 @@
             display: none;
             position: absolute;
             background: white;
-            min-width: 200px;
+            min-width: 350px;
             box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
             border-radius: 10px;
             z-index: 1000;
@@ -340,6 +346,8 @@
             transition: background-color 0.3s ease;
             font-weight: 500;
             border-bottom: 1px solid #e9ecef;
+            white-space: nowrap;
+            font-size: 0.95em;
         }
 
         .dropdown-item:last-child {
@@ -359,7 +367,7 @@
         </a>
     </div>
     <div class="input-section-title">
-        Introduce cargas en daN
+        Introduce par en Nm
     </div>
     <div class="input-section">
         <div class="input-group">
@@ -415,14 +423,14 @@
 
     <div class="button-group">
         <div class="dropdown">
-            <button onclick="toggleDropdown()">Elegir referencia BMW</button>
+            <button id="dropdownButton" onclick="toggleDropdown()">Elegir referencia BMW</button>
             <div id="dropdownMenu" class="dropdown-content">
-                <div class="dropdown-item" onclick="aplicarPatron('LA')">LA</div>
-                <div class="dropdown-item" onclick="aplicarPatron('LB')">LB</div>
-                <div class="dropdown-item" onclick="aplicarPatron('LE')">LE</div>
-                <div class="dropdown-item" onclick="aplicarPatron('LG')">LG</div>
-                <div class="dropdown-item" onclick="aplicarPatron('LH')">LH</div>
-                <div class="dropdown-item" onclick="aplicarPatron('LI')">LI</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LA')">LA - E06.09.1850 - BR5A6D638</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LB')">LB - E06.09.1105 - BR5A7D4C6</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LE')">LE - E06.09.1110 - BC5A6D4D6</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LG')">LG - E06.09.1113 - BR5A7D4D5</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LH')">LH - E06.09.1800 - BR5A7D4C5</div>
+                <div class="dropdown-item" onclick="aplicarPatron('LI')">LI - E06.09.1805 - BR5A7D4C6</div>
             </div>
         </div>
         <div class="informe-group">
@@ -455,6 +463,16 @@
         let chart = null;
         let patronActual = null;
         let referenciaActual = null;
+        
+        // Códigos de referencia BMW
+        const codigosReferencia = {
+            'LA': 'LA - E06.09.1850 - BR5A6D638',
+            'LB': 'LB - E06.09.1105 - BR5A7D4C6',
+            'LE': 'LE - E06.09.1110 - BC5A6D4D6',
+            'LG': 'LG - E06.09.1113 - BR5A7D4D5',
+            'LH': 'LH - E06.09.1800 - BR5A7D4C5',
+            'LI': 'LI - E06.09.1805 - BR5A7D4C6'
+        };
 
         // Inicializar gráfico
         function initChart() {
@@ -613,7 +631,7 @@
                             },
                             title: {
                                 display: true,
-                                text: 'Cargas (daN)',
+                                text: 'Par (Nm)',
                                 font: {
                                     size: 14,
                                     weight: 'bold'
@@ -868,6 +886,12 @@
                 patronActual = patron;
                 referenciaActual = patronId;
                 
+                // Actualizar el texto del botón con el código completo
+                const dropdownButton = document.getElementById('dropdownButton');
+                if (dropdownButton && codigosReferencia[patronId]) {
+                    dropdownButton.textContent = codigosReferencia[patronId];
+                }
+                
                 // Actualizar las etiquetas del gráfico con la referencia seleccionada
                 if (chart) {
                     chart.data.datasets[2].label = patronId;
@@ -1013,4 +1037,5 @@
     </script>
 </body>
 </html>
+
 

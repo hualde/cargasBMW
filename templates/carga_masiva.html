@@ -420,12 +420,13 @@
     <div id="errorMessage" class="error-message" style="display: none;"></div>
     <div id="loading" class="loading" style="display: none;">Procesando archivo...</div>
 
+    <div id="toggleButtonContainer" class="hidden" style="max-width: 1400px; margin: 0 auto 20px auto; text-align: center;">
+        <button id="toggleDataButton" class="upload-button" onclick="alternarTipoDatos()" style="width: auto; padding: 12px 30px; margin: 0;">
+            📊 Mostrar Consumos (A)
+        </button>
+    </div>
+
     <div id="chartContainerWrapper" class="chart-container-wrapper hidden">
-        <div style="text-align: center; margin-bottom: 15px;">
-            <button id="toggleDataButton" class="upload-button" onclick="alternarTipoDatos()" style="width: auto; padding: 12px 30px; margin: 0;">
-                📊 Mostrar Consumos (A)
-            </button>
-        </div>
         <div class="chart-container">
             <canvas id="mainChart"></canvas>
         </div>
@@ -561,6 +562,7 @@
             ocultarInfo();
             chartWrapper.classList.add('hidden');
             controlsSection.classList.add('hidden');
+            document.getElementById('toggleButtonContainer').classList.add('hidden');
 
             const formData = new FormData();
             formData.append('file', fileInput.files[0]);
@@ -594,6 +596,7 @@
                 // Mostrar controles y gráfica
                 controlsSection.classList.remove('hidden');
                 chartWrapper.classList.remove('hidden');
+                document.getElementById('toggleButtonContainer').classList.remove('hidden');
 
                 // Crear gráfica
                 crearGrafica();
@@ -1330,9 +1333,100 @@
             }
 
             try {
-                // Capturar el gráfico como imagen
+                // Guardar el estado actual
+                const estadoOriginal = mostrarConsumos;
                 const canvas = document.getElementById('mainChart');
-                const imagenGrafico = canvas.toDataURL('image/png');
+                
+                // Función auxiliar para capturar gráfico sin cambiar el estado visible
+                const capturarGrafico = (mostrarConsumosTemp) => {
+                    // Actualizar datos temporalmente
+                    const percentages = ['0', '100'];
+                    const piezaIds = Object.keys(datosPiezas).sort((a, b) => {
+                        const piezaA = datosPiezas[a];
+                        const piezaB = datosPiezas[b];
+                        if (piezaA.of !== piezaB.of) {
+                            return piezaA.of - piezaB.of;
+                        }
+                        return piezaA.pieza - piezaB.pieza;
+                    });
+                    
+                    let datasetIndex = 0;
+                    piezaIds.forEach((piezaId) => {
+                        const pieza = datosPiezas[piezaId];
+                        const cargas = pieza.cargas;
+                        
+                        // Actualizar dataset izquierda
+                        const izquierdaData = [];
+                        percentages.forEach(percent => {
+                            if (cargas[percent]) {
+                                if (mostrarConsumosTemp) {
+                                    izquierdaData.push(-Math.abs(cargas[percent].consumo_izquierda || 0));
+                                } else {
+                                    izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
+                                }
+                            } else {
+                                izquierdaData.push(0);
+                            }
+                        });
+                        chart.data.datasets[datasetIndex].data = izquierdaData;
+                        datasetIndex++;
+                        
+                        // Actualizar dataset derecha
+                        const derechaData = [];
+                        percentages.forEach(percent => {
+                            if (cargas[percent]) {
+                                if (mostrarConsumosTemp) {
+                                    derechaData.push(Math.abs(cargas[percent].consumo_derecha || 0));
+                                } else {
+                                    derechaData.push(Math.abs(cargas[percent].derecha || 0));
+                                }
+                            } else {
+                                derechaData.push(0);
+                            }
+                        });
+                        chart.data.datasets[datasetIndex].data = derechaData;
+                        datasetIndex++;
+                    });
+                    
+                    // Actualizar título del eje Y y etiquetas del eje X
+                    chart.options.scales.y.title.text = mostrarConsumosTemp ? 'Consumo (A)' : 'Par (Nm)';
+                    chart.data.labels = mostrarConsumosTemp ? ['0%', '100%*'] : ['0%', '100%'];
+                    
+                    // Actualizar formato de ticks
+                    chart.options.scales.y.ticks.callback = function(value) {
+                        const absValue = Math.abs(value);
+                        if (mostrarConsumosTemp) {
+                            return absValue.toFixed(2);
+                        } else {
+                            if (Math.abs(absValue - Math.round(absValue)) < 0.0001) {
+                                return Math.round(absValue);
+                            }
+                            return absValue.toFixed(1);
+                        }
+                    };
+                    
+                    // Actualizar escala
+                    actualizarEscala();
+                    chart.update('none');
+                };
+                
+                // Capturar gráfico de pares
+                capturarGrafico(false);
+                const imagenGraficoPares = canvas.toDataURL('image/png');
+                
+                // Capturar gráfico de consumos
+                capturarGrafico(true);
+                const imagenGraficoConsumos = canvas.toDataURL('image/png');
+                
+                // Restaurar el estado original
+                mostrarConsumos = estadoOriginal;
+                capturarGrafico(estadoOriginal);
+                
+                // Actualizar el texto del botón
+                const toggleButton = document.getElementById('toggleDataButton');
+                if (toggleButton) {
+                    toggleButton.textContent = mostrarConsumos ? '🔧 Mostrar Pares (Nm)' : '📊 Mostrar Consumos (A)';
+                }
 
                 // Recopilar solo las piezas que están visibles en el gráfico
                 const piezasData = {};
@@ -1400,7 +1494,8 @@
                     piezas: piezasData,
                     referencia_bmw: referenciaActual || null,
                     dispersion: dispersion,
-                    imagen_grafico: imagenGrafico
+                    imagen_grafico_pares: imagenGraficoPares,
+                    imagen_grafico_consumos: imagenGraficoConsumos
                 };
 
                 // Llamar al endpoint para generar el PDF

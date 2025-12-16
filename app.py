@@ -4,7 +4,7 @@ from reportlab.lib.units import mm
 from reportlab.pdfgen import canvas
 from reportlab.lib import colors
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, Image, PageBreak
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 import json
 import os
@@ -261,7 +261,8 @@ def generar_informe_masivo():
         piezas = data.get('piezas', {})
         referencia_bmw = data.get('referencia_bmw', None)
         dispersion = data.get('dispersion', 0)
-        imagen_grafico = data.get('imagen_grafico', None)
+        imagen_grafico_pares = data.get('imagen_grafico_pares', None)
+        imagen_grafico_consumos = data.get('imagen_grafico_consumos', None)
         
         if not piezas:
             return jsonify({'error': 'No hay piezas para generar el informe'}), 400
@@ -374,11 +375,11 @@ def generar_informe_masivo():
         elements.append(resumen_table)
         elements.append(Spacer(1, 10))
         
-        # Añadir gráfico si está disponible
-        if imagen_grafico:
+        # Añadir gráfico de pares si está disponible
+        if imagen_grafico_pares:
             try:
                 # Decodificar la imagen base64
-                imagen_data = imagen_grafico.split(',')[1] if ',' in imagen_grafico else imagen_grafico
+                imagen_data = imagen_grafico_pares.split(',')[1] if ',' in imagen_grafico_pares else imagen_grafico_pares
                 imagen_bytes = base64.b64decode(imagen_data)
                 
                 # Crear objeto Image desde bytes
@@ -386,11 +387,33 @@ def generar_informe_masivo():
                 img = Image(img_buffer, width=170*mm, height=120*mm)
                 img.hAlign = 'CENTER'
                 
-                elements.append(Paragraph('Gráfico de Par', styles['Heading2']))
+                elements.append(Paragraph('Gráfico de Par (Nm)', styles['Heading2']))
                 elements.append(Spacer(1, 12))
                 elements.append(img)
             except Exception as e:
-                print(f"Error al añadir gráfico al PDF: {e}")
+                print(f"Error al añadir gráfico de pares al PDF: {e}")
+        
+        # Salto de página antes del gráfico de consumos
+        if imagen_grafico_consumos:
+            elements.append(PageBreak())
+        
+        # Añadir gráfico de consumos si está disponible
+        if imagen_grafico_consumos:
+            try:
+                # Decodificar la imagen base64
+                imagen_data = imagen_grafico_consumos.split(',')[1] if ',' in imagen_grafico_consumos else imagen_grafico_consumos
+                imagen_bytes = base64.b64decode(imagen_data)
+                
+                # Crear objeto Image desde bytes
+                img_buffer = BytesIO(imagen_bytes)
+                img = Image(img_buffer, width=170*mm, height=120*mm)
+                img.hAlign = 'CENTER'
+                
+                elements.append(Paragraph('Gráfico de Consumo (A)', styles['Heading2']))
+                elements.append(Spacer(1, 12))
+                elements.append(img)
+            except Exception as e:
+                print(f"Error al añadir gráfico de consumos al PDF: {e}")
         
         # Construir PDF
         doc.build(elements)

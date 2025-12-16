@@ -408,8 +408,12 @@
             </div>
         </div>
         <div class="control-group">
-            <label>Dispersión (%):</label>
-            <input type="number" id="dispersion" step="0.1" min="0" value="0" oninput="actualizarGrafica()">
+            <label>Dispersión Par (%):</label>
+            <input type="number" id="dispersion-par" step="0.1" min="0" value="0" oninput="actualizarGrafica()">
+        </div>
+        <div class="control-group">
+            <label>Dispersión Consumo (%):</label>
+            <input type="number" id="dispersion-consumo" step="0.1" min="0" value="0" oninput="actualizarGrafica()">
         </div>
         <button class="upload-button" onclick="generarInformeMasivo()" style="width: auto; padding: 12px 30px; margin: 0;">
             📄 Generar Informe
@@ -891,11 +895,9 @@
                 }
             };
             
-            // Actualizar escala
-            actualizarEscala();
-            
-            // Actualizar el gráfico
-            chart.update();
+            // Actualizar patrón y límites de dispersión llamando a actualizarGrafica
+            // Esto recalculará el patrón y los límites según el tipo de datos mostrados
+            actualizarGrafica();
         }
 
         function crearLeyendaPersonalizada() {
@@ -1170,7 +1172,9 @@
             if (!chart || !datosPiezas) return;
 
             const percentages = ['0', '100'];
-            const dispersion = parseFloat(document.getElementById('dispersion').value) || 0;
+            const dispersionPar = parseFloat(document.getElementById('dispersion-par').value) || 0;
+            const dispersionConsumo = parseFloat(document.getElementById('dispersion-consumo').value) || 0;
+            const dispersion = mostrarConsumos ? dispersionConsumo : dispersionPar;
 
             // Eliminar datasets de patrón y límites anteriores
             const datasetsToRemove = [];
@@ -1195,8 +1199,15 @@
 
                 percentages.forEach(percent => {
                     if (patronActual[percent]) {
-                        patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
-                        patronDerechaData.push(Math.abs(patronActual[percent].derecha));
+                        if (mostrarConsumos) {
+                            // Datos de consumo para el patrón
+                            patronIzquierdaData.push(-Math.abs(patronActual[percent].consumo_izquierda || 0));
+                            patronDerechaData.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                        } else {
+                            // Datos de par para el patrón
+                            patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
+                            patronDerechaData.push(Math.abs(patronActual[percent].derecha));
+                        }
                     } else {
                         patronIzquierdaData.push(null);
                         patronDerechaData.push(null);
@@ -1245,11 +1256,21 @@
                             const factor = 1 + (dispersion / 100);
                             const factorInferior = 1 - (dispersion / 100);
 
-                            limiteSuperiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factor));
-                            limiteInferiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factorInferior));
-
-                            limiteSuperiorDerecha.push(Math.abs(patronActual[percent].derecha * factor));
-                            limiteInferiorDerecha.push(Math.abs(patronActual[percent].derecha * factorInferior));
+                            if (mostrarConsumos) {
+                                // Límites para consumos
+                                const consumoIzq = patronActual[percent].consumo_izquierda || 0;
+                                const consumoDrch = patronActual[percent].consumo_derecha || 0;
+                                limiteSuperiorIzquierda.push(-Math.abs(consumoIzq * factor));
+                                limiteInferiorIzquierda.push(-Math.abs(consumoIzq * factorInferior));
+                                limiteSuperiorDerecha.push(Math.abs(consumoDrch * factor));
+                                limiteInferiorDerecha.push(Math.abs(consumoDrch * factorInferior));
+                            } else {
+                                // Límites para pares
+                                limiteSuperiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factor));
+                                limiteInferiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factorInferior));
+                                limiteSuperiorDerecha.push(Math.abs(patronActual[percent].derecha * factor));
+                                limiteInferiorDerecha.push(Math.abs(patronActual[percent].derecha * factorInferior));
+                            }
                         } else {
                             limiteSuperiorIzquierda.push(null);
                             limiteSuperiorDerecha.push(null);
@@ -1486,14 +1507,16 @@
                     return;
                 }
 
-                const dispersion = parseFloat(document.getElementById('dispersion').value) || 0;
+                const dispersionPar = parseFloat(document.getElementById('dispersion-par').value) || 0;
+                const dispersionConsumo = parseFloat(document.getElementById('dispersion-consumo').value) || 0;
 
                 // Preparar datos para enviar
                 const datosInforme = {
                     referencia_excel: referenciaExcel,
                     piezas: piezasData,
                     referencia_bmw: referenciaActual || null,
-                    dispersion: dispersion,
+                    dispersion_par: dispersionPar,
+                    dispersion_consumo: dispersionConsumo,
                     imagen_grafico_pares: imagenGraficoPares,
                     imagen_grafico_consumos: imagenGraficoConsumos
                 };

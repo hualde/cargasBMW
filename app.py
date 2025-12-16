@@ -259,7 +259,11 @@ def generar_informe_masivo():
         referencia_excel = data.get('referencia_excel', None)
         piezas = data.get('piezas', {})
         referencia_bmw = data.get('referencia_bmw', None)
-        dispersion = data.get('dispersion', 0)
+        dispersion_par = data.get('dispersion_par', 0)
+        dispersion_consumo = data.get('dispersion_consumo', 0)
+        # Mantener compatibilidad con versiones anteriores
+        if dispersion_par == 0 and dispersion_consumo == 0:
+            dispersion_par = data.get('dispersion', 0)
         imagen_grafico_pares = data.get('imagen_grafico_pares', None)
         imagen_grafico_consumos = data.get('imagen_grafico_consumos', None)
         
@@ -306,8 +310,10 @@ def generar_informe_masivo():
             info_data.append(['Referencia Excel:', referencia_excel])
         if referencia_bmw:
             info_data.append(['Referencia BMW:', referencia_bmw])
-        if dispersion > 0:
-            info_data.append(['Dispersión:', f'{dispersion}%'])
+        if dispersion_par > 0:
+            info_data.append(['Dispersión Par:', f'{dispersion_par}%'])
+        if dispersion_consumo > 0:
+            info_data.append(['Dispersión Consumo:', f'{dispersion_consumo}%'])
         
         info_table = Table(info_data, colWidths=[60*mm, 130*mm])
         info_table.setStyle(TableStyle([
@@ -440,7 +446,11 @@ def generar_informe():
         referencia = data.get('referencia', 'Sin referencia')
         cargas = data.get('cargas', {})
         referencia_bmw = data.get('referencia_bmw', None)
-        dispersion = data.get('dispersion', 0)
+        dispersion_par = data.get('dispersion_par', 0)
+        dispersion_consumo = data.get('dispersion_consumo', 0)
+        # Mantener compatibilidad con versiones anteriores
+        if dispersion_par == 0 and dispersion_consumo == 0:
+            dispersion_par = data.get('dispersion', 0)
         ruido = data.get('ruido', 0)
         imagen_grafico_pares = data.get('imagen_grafico_pares', None)
         imagen_grafico_consumos = data.get('imagen_grafico_consumos', None)
@@ -483,8 +493,10 @@ def generar_informe():
         
         if referencia_bmw:
             info_data.append(['Referencia BMW:', referencia_bmw])
-        if dispersion > 0:
-            info_data.append(['Dispersión:', f'{dispersion}%'])
+        if dispersion_par > 0:
+            info_data.append(['Dispersión Par:', f'{dispersion_par}%'])
+        if dispersion_consumo > 0:
+            info_data.append(['Dispersión Consumo:', f'{dispersion_consumo}%'])
         if ruido > 0:
             info_data.append(['Ruido:', f'{ruido} mm/s²'])
         

@@ -440,8 +440,12 @@
     </div>
 
     <div class="dispersion-group">
-        <label>Dispersión (%):</label>
-        <input type="number" id="dispersion" step="0.1" min="0" value="0">
+        <label>Dispersión Par (%):</label>
+        <input type="number" id="dispersion-par" step="0.1" min="0" value="0">
+    </div>
+    <div class="dispersion-group">
+        <label>Dispersión Consumo (%):</label>
+        <input type="number" id="dispersion-consumo" step="0.1" min="0" value="0">
     </div>
 
     <div style="max-width: 1400px; margin: 0 auto 20px auto; text-align: center;">
@@ -752,8 +756,11 @@
                 chart.data.datasets[2].data = patronIzquierdaData;
                 chart.data.datasets[3].data = patronDerechaData;
                 
-                // Calcular límites de dispersión si hay un valor de dispersión
-                const dispersion = parseFloat(document.getElementById('dispersion').value) || 0;
+                // Calcular límites de dispersión según el tipo de datos mostrados
+                const dispersionPar = parseFloat(document.getElementById('dispersion-par').value) || 0;
+                const dispersionConsumo = parseFloat(document.getElementById('dispersion-consumo').value) || 0;
+                const dispersion = mostrarConsumos ? dispersionConsumo : dispersionPar;
+                
                 if (dispersion > 0) {
                     const limiteSuperiorIzquierda = [];
                     const limiteSuperiorDerecha = [];
@@ -843,7 +850,9 @@
                 });
                 
                 // Incluir límites de dispersión si están visibles
-                const dispersion = parseFloat(document.getElementById('dispersion').value) || 0;
+                const dispersionPar = parseFloat(document.getElementById('dispersion-par').value) || 0;
+                const dispersionConsumo = parseFloat(document.getElementById('dispersion-consumo').value) || 0;
+                const dispersion = mostrarConsumos ? dispersionConsumo : dispersionPar;
                 if (dispersion > 0 && !chart.data.datasets[4].hidden) {
                     [4, 5, 6, 7].forEach(idx => {
                         if (chart.data.datasets[idx].data) {
@@ -995,7 +1004,8 @@
         });
         
         // Actualizar gráfico cuando cambie la dispersión
-        document.getElementById('dispersion').addEventListener('input', updateChart);
+        document.getElementById('dispersion-par').addEventListener('input', updateChart);
+        document.getElementById('dispersion-consumo').addEventListener('input', updateChart);
 
         // Función para crear informe
         async function crearInforme() {
@@ -1137,7 +1147,8 @@
                     };
                 });
                 
-                const dispersion = parseFloat(document.getElementById('dispersion').value) || 0;
+                const dispersionPar = parseFloat(document.getElementById('dispersion-par').value) || 0;
+                const dispersionConsumo = parseFloat(document.getElementById('dispersion-consumo').value) || 0;
                 const ruido = parseFloat(document.getElementById('ruido').value) || 0;
                 
                 // Preparar datos para enviar
@@ -1145,7 +1156,8 @@
                     referencia: referencia,
                     cargas: cargas,
                     referencia_bmw: referenciaActual || null,
-                    dispersion: dispersion,
+                    dispersion_par: dispersionPar,
+                    dispersion_consumo: dispersionConsumo,
                     ruido: ruido,
                     imagen_grafico_pares: imagenGraficoPares,
                     imagen_grafico_consumos: imagenGraficoConsumos

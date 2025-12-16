@@ -854,12 +854,15 @@
                                 }
                             });
 
-                            chart.setDatasetVisibility(index, isVisible);
-                            if (relatedIndex !== -1) {
-                                chart.setDatasetVisibility(relatedIndex, isVisible);
-                            }
-                        });
-                        chart.update();
+                    chart.setDatasetVisibility(index, isVisible);
+                    if (relatedIndex !== -1) {
+                        chart.setDatasetVisibility(relatedIndex, isVisible);
+                    }
+                });
+                chart.update();
+                
+                // Actualizar la escala después de cambiar la visibilidad
+                actualizarEscala();
                         // Actualizar checkboxes individuales de piezas
                         piezasPorOF[of].forEach(({ index }) => {
                             const checkbox = document.getElementById(`legend-checkbox-${index}`);
@@ -967,6 +970,9 @@
                 }
                 chart.update();
                 
+                // Actualizar la escala después de cambiar la visibilidad
+                actualizarEscala();
+                
                 // Si hay callback para actualizar el checkbox de OF, llamarlo
                 if (callbackActualizarOF) {
                     callbackActualizarOF();
@@ -986,6 +992,36 @@
             item.appendChild(labelElement);
 
             return item;
+        }
+
+        // Función para actualizar solo la escala del gráfico
+        function actualizarEscala() {
+            if (!chart) return;
+            
+            // Actualizar escala solo con los valores de los datasets visibles
+            let allValues = [];
+            
+            // Iterar sobre todos los datasets del gráfico y solo incluir los que están visibles
+            chart.data.datasets.forEach((dataset, index) => {
+                // Verificar si el dataset está visible
+                const isHidden = dataset.hidden === true;
+                const isVisible = !isHidden && chart.isDatasetVisible(index);
+                
+                if (isVisible && dataset.data) {
+                    // Incluir todos los valores de este dataset visible
+                    dataset.data.forEach(val => {
+                        if (val !== null && val !== undefined) {
+                            allValues.push(Math.abs(val));
+                        }
+                    });
+                }
+            });
+
+            const maxValue = Math.max(...allValues, 0);
+            chart.options.scales.y.max = maxValue * 1.1;
+            chart.options.scales.y.min = -maxValue * 1.1;
+            
+            chart.update();
         }
 
         function actualizarGrafica() {
@@ -1142,54 +1178,9 @@
                 }
             }
 
-            // Actualizar escala
-            let allValues = [];
-            // Ordenar por OF primero, luego por número de pieza
-            const piezaIds = Object.keys(datosPiezas).sort((a, b) => {
-                const piezaA = datosPiezas[a];
-                const piezaB = datosPiezas[b];
-                // Comparar primero por OF
-                if (piezaA.of !== piezaB.of) {
-                    return piezaA.of - piezaB.of;
-                }
-                // Si tienen el mismo OF, comparar por número de pieza
-                return piezaA.pieza - piezaB.pieza;
-            });
-            piezaIds.forEach(piezaId => {
-                const pieza = datosPiezas[piezaId];
-                const cargas = pieza.cargas;
-                percentages.forEach(percent => {
-                    if (cargas[percent]) {
-                        allValues.push(Math.abs(cargas[percent].izquierda || 0));
-                        allValues.push(Math.abs(cargas[percent].derecha || 0));
-                    }
-                });
-            });
-
-            if (patronActual) {
-                percentages.forEach(percent => {
-                    if (patronActual[percent]) {
-                        allValues.push(Math.abs(patronActual[percent].izquierda));
-                        allValues.push(Math.abs(patronActual[percent].derecha));
-                    }
-                });
-
-                if (dispersion > 0) {
-                    chart.data.datasets.forEach(dataset => {
-                        if (dataset.data && dataset.label && dataset.label.includes('Límite')) {
-                            dataset.data.forEach(val => {
-                                if (val !== null) allValues.push(Math.abs(val));
-                            });
-                        }
-                    });
-                }
-            }
-
-            const maxValue = Math.max(...allValues, 0);
-            chart.options.scales.y.max = maxValue * 1.1;
-            chart.options.scales.y.min = -maxValue * 1.1;
-
-            chart.update();
+            // Actualizar escala usando la función dedicada
+            actualizarEscala();
+            
             crearLeyendaPersonalizada();
         }
 

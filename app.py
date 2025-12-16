@@ -442,7 +442,11 @@ def generar_informe():
         referencia_bmw = data.get('referencia_bmw', None)
         dispersion = data.get('dispersion', 0)
         ruido = data.get('ruido', 0)
-        imagen_grafico = data.get('imagen_grafico', None)
+        imagen_grafico_pares = data.get('imagen_grafico_pares', None)
+        imagen_grafico_consumos = data.get('imagen_grafico_consumos', None)
+        # Mantener compatibilidad con versiones anteriores
+        if not imagen_grafico_pares and not imagen_grafico_consumos:
+            imagen_grafico_pares = data.get('imagen_grafico', None)
         
         # Crear el PDF en memoria con márgenes reducidos
         buffer = BytesIO()
@@ -530,11 +534,11 @@ def generar_informe():
         elements.append(carga_table)
         elements.append(Spacer(1, 10))
         
-        # Añadir gráfico si está disponible
-        if imagen_grafico:
+        # Añadir gráfico de pares si está disponible
+        if imagen_grafico_pares:
             try:
                 # Decodificar la imagen base64
-                imagen_data = imagen_grafico.split(',')[1] if ',' in imagen_grafico else imagen_grafico
+                imagen_data = imagen_grafico_pares.split(',')[1] if ',' in imagen_grafico_pares else imagen_grafico_pares
                 imagen_bytes = base64.b64decode(imagen_data)
                 
                 # Crear objeto Image desde bytes
@@ -542,11 +546,33 @@ def generar_informe():
                 img = Image(img_buffer, width=170*mm, height=120*mm)
                 img.hAlign = 'CENTER'
                 
-                elements.append(Paragraph('Gráfico de Par', styles['Heading2']))
+                elements.append(Paragraph('Gráfico de Par (Nm)', styles['Heading2']))
                 elements.append(Spacer(1, 12))
                 elements.append(img)
             except Exception as e:
-                print(f"Error al añadir gráfico al PDF: {e}")
+                print(f"Error al añadir gráfico de pares al PDF: {e}")
+        
+        # Salto de página antes del gráfico de consumos
+        if imagen_grafico_consumos:
+            elements.append(PageBreak())
+        
+        # Añadir gráfico de consumos si está disponible
+        if imagen_grafico_consumos:
+            try:
+                # Decodificar la imagen base64
+                imagen_data = imagen_grafico_consumos.split(',')[1] if ',' in imagen_grafico_consumos else imagen_grafico_consumos
+                imagen_bytes = base64.b64decode(imagen_data)
+                
+                # Crear objeto Image desde bytes
+                img_buffer = BytesIO(imagen_bytes)
+                img = Image(img_buffer, width=170*mm, height=120*mm)
+                img.hAlign = 'CENTER'
+                
+                elements.append(Paragraph('Gráfico de Consumo (A)', styles['Heading2']))
+                elements.append(Spacer(1, 12))
+                elements.append(img)
+            except Exception as e:
+                print(f"Error al añadir gráfico de consumos al PDF: {e}")
         
         # Construir PDF
         doc.build(elements)

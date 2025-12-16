@@ -1006,9 +1006,123 @@
             }
             
             try {
-                // Capturar el gráfico como imagen
+                // Guardar el estado actual
+                const estadoOriginal = mostrarConsumos;
                 const canvas = document.getElementById('myChart');
-                const imagenGrafico = canvas.toDataURL('image/png');
+                
+                // Función auxiliar para capturar gráfico sin cambiar el estado visible
+                const capturarGrafico = (mostrarConsumosTemp) => {
+                    const percentages = ['0', '100'];
+                    const izquierdaData = [];
+                    const derechaData = [];
+
+                    percentages.forEach(percent => {
+                        if (mostrarConsumosTemp) {
+                            // Mostrar consumos
+                            const consumoIzquierda = parseFloat(document.getElementById(`${percent}-consumo-izquierda`).value) || 0;
+                            const consumoDerecha = parseFloat(document.getElementById(`${percent}-consumo-derecha`).value) || 0;
+                            izquierdaData.push(-Math.abs(consumoIzquierda));
+                            derechaData.push(Math.abs(consumoDerecha));
+                        } else {
+                            // Mostrar pares
+                            const izquierda = parseFloat(document.getElementById(`${percent}-izquierda`).value) || 0;
+                            const derecha = parseFloat(document.getElementById(`${percent}-derecha`).value) || 0;
+                            izquierdaData.push(-Math.abs(izquierda));
+                            derechaData.push(Math.abs(derecha));
+                        }
+                    });
+
+                    // Actualizar datos del gráfico
+                    chart.data.datasets[0].data = izquierdaData;
+                    chart.data.datasets[1].data = derechaData;
+                    
+                    // Actualizar patrón si existe
+                    if (patronActual) {
+                        const patronIzquierdaData = [];
+                        const patronDerechaData = [];
+                        
+                        percentages.forEach(percent => {
+                            if (patronActual[percent]) {
+                                if (mostrarConsumosTemp) {
+                                    patronIzquierdaData.push(-Math.abs(patronActual[percent].consumo_izquierda || 0));
+                                    patronDerechaData.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                                } else {
+                                    patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
+                                    patronDerechaData.push(Math.abs(patronActual[percent].derecha));
+                                }
+                            } else {
+                                patronIzquierdaData.push(null);
+                                patronDerechaData.push(null);
+                            }
+                        });
+                        
+                        chart.data.datasets[2].data = patronIzquierdaData;
+                        chart.data.datasets[3].data = patronDerechaData;
+                    }
+                    
+                    // Actualizar etiquetas del eje X
+                    chart.data.labels = mostrarConsumosTemp ? ['0%', '100%*'] : ['0%', '100%'];
+                    
+                    // Actualizar título del eje Y
+                    chart.options.scales.y.title.text = mostrarConsumosTemp ? 'Consumo (A)' : 'Par (Nm)';
+                    
+                    // Actualizar formato de ticks
+                    chart.options.scales.y.ticks.callback = function(value) {
+                        const absValue = Math.abs(value);
+                        if (mostrarConsumosTemp) {
+                            return absValue.toFixed(2);
+                        } else {
+                            if (Math.abs(absValue - Math.round(absValue)) < 0.0001) {
+                                return Math.round(absValue);
+                            }
+                            return absValue.toFixed(1);
+                        }
+                    };
+                    
+                    // Actualizar escala
+                    let allValues = [
+                        ...izquierdaData.map(Math.abs),
+                        ...derechaData.map(Math.abs)
+                    ];
+                    
+                    if (patronActual) {
+                        percentages.forEach(percent => {
+                            if (patronActual[percent]) {
+                                if (mostrarConsumosTemp) {
+                                    allValues.push(Math.abs(patronActual[percent].consumo_izquierda || 0));
+                                    allValues.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                                } else {
+                                    allValues.push(Math.abs(patronActual[percent].izquierda));
+                                    allValues.push(Math.abs(patronActual[percent].derecha));
+                                }
+                            }
+                        });
+                    }
+                    
+                    const maxValue = Math.max(...allValues, 0);
+                    chart.options.scales.y.max = maxValue * 1.1;
+                    chart.options.scales.y.min = -maxValue * 1.1;
+                    
+                    chart.update('none');
+                };
+                
+                // Capturar gráfico de pares
+                capturarGrafico(false);
+                const imagenGraficoPares = canvas.toDataURL('image/png');
+                
+                // Capturar gráfico de consumos
+                capturarGrafico(true);
+                const imagenGraficoConsumos = canvas.toDataURL('image/png');
+                
+                // Restaurar el estado original
+                mostrarConsumos = estadoOriginal;
+                capturarGrafico(estadoOriginal);
+                
+                // Actualizar el texto del botón
+                const toggleButton = document.getElementById('toggleDataButton');
+                if (toggleButton) {
+                    toggleButton.textContent = mostrarConsumos ? '🔧 Mostrar Pares (Nm)' : '📊 Mostrar Consumos (A)';
+                }
                 
                 // Recopilar datos actuales
                 const percentages = ['0', '100'];
@@ -1033,7 +1147,8 @@
                     referencia_bmw: referenciaActual || null,
                     dispersion: dispersion,
                     ruido: ruido,
-                    imagen_grafico: imagenGrafico
+                    imagen_grafico_pares: imagenGraficoPares,
+                    imagen_grafico_consumos: imagenGraficoConsumos
                 };
                 
                 // Llamar al endpoint para generar el PDF

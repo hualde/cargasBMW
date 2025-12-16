@@ -62,8 +62,9 @@
             transition: all 0.3s ease;
             display: flex;
             align-items: center;
-            gap: 15px;
+            gap: 10px;
             box-shadow: none;
+            flex-wrap: wrap;
         }
 
         .input-group:first-child {
@@ -83,10 +84,11 @@
         }
 
         .input-group > label {
-            min-width: 50px;
+            min-width: 60px;
             font-weight: bold;
             color: #333;
             font-size: 1.1em;
+            flex-shrink: 0;
         }
 
         .input-row {
@@ -97,12 +99,13 @@
         }
 
         .input-row input {
-            width: 80px;
+            width: 70px;
             padding: 8px;
             border: 2px solid #dee2e6;
             border-radius: 5px;
             font-size: 0.95em;
             transition: border-color 0.3s ease;
+            flex-shrink: 0;
         }
 
         .input-row input:focus {
@@ -142,13 +145,14 @@
         }
 
         .input-row label {
-            min-width: 70px;
+            min-width: 100px;
             font-weight: normal;
             margin: 0;
             display: flex;
             align-items: center;
             color: #495057;
-            font-size: 0.9em;
+            font-size: 0.85em;
+            white-space: nowrap;
         }
 
         .chart-container {
@@ -367,56 +371,46 @@
         </a>
     </div>
     <div class="input-section-title">
-        Introduce par en Nm
+        Introduce par en Nm y consumo en A
     </div>
     <div class="input-section">
         <div class="input-group">
             <label>0%</label>
             <div class="input-row">
+                <label>Par Izda:</label>
                 <input type="number" id="0-izquierda" step="0.1" value="0">
             </div>
             <div class="input-row">
+                <label>Par Drch:</label>
                 <input type="number" id="0-derecha" step="0.1" value="0">
             </div>
-        </div>
-
-        <div class="input-group">
-            <label>25%</label>
             <div class="input-row">
-                <input type="number" id="25-izquierda" step="0.1" value="0">
+                <label>Consumo Izda (A):</label>
+                <input type="number" id="0-consumo-izquierda" step="0.1" value="0">
             </div>
             <div class="input-row">
-                <input type="number" id="25-derecha" step="0.1" value="0">
-            </div>
-        </div>
-
-        <div class="input-group">
-            <label>50%</label>
-            <div class="input-row">
-                <input type="number" id="50-izquierda" step="0.1" value="0">
-            </div>
-            <div class="input-row">
-                <input type="number" id="50-derecha" step="0.1" value="0">
-            </div>
-        </div>
-
-        <div class="input-group">
-            <label>75%</label>
-            <div class="input-row">
-                <input type="number" id="75-izquierda" step="0.1" value="0">
-            </div>
-            <div class="input-row">
-                <input type="number" id="75-derecha" step="0.1" value="0">
+                <label>Consumo Drch (A):</label>
+                <input type="number" id="0-consumo-derecha" step="0.1" value="0">
             </div>
         </div>
 
         <div class="input-group">
             <label>100%</label>
             <div class="input-row">
+                <label>Par Izda:</label>
                 <input type="number" id="100-izquierda" step="0.1" value="0">
             </div>
             <div class="input-row">
+                <label>Par Drch:</label>
                 <input type="number" id="100-derecha" step="0.1" value="0">
+            </div>
+            <div class="input-row">
+                <label>Consumo Izda (A):</label>
+                <input type="number" id="100-consumo-izquierda" step="0.1" value="0">
+            </div>
+            <div class="input-row">
+                <label>Consumo Drch (A):</label>
+                <input type="number" id="100-consumo-derecha" step="0.1" value="0">
             </div>
         </div>
     </div>
@@ -450,6 +444,12 @@
         <input type="number" id="dispersion" step="0.1" min="0" value="0">
     </div>
 
+    <div style="max-width: 1400px; margin: 0 auto 20px auto; text-align: center;">
+        <button id="toggleDataButton" class="copy-button" onclick="alternarTipoDatos()" style="width: auto; padding: 12px 30px; margin: 0;">
+            📊 Mostrar Consumos (A)
+        </button>
+    </div>
+
     <div class="container">
         <div class="chart-container">
             <canvas id="myChart"></canvas>
@@ -463,6 +463,7 @@
         let chart = null;
         let patronActual = null;
         let referenciaActual = null;
+        let mostrarConsumos = false; // false = mostrar pares, true = mostrar consumos
         
         // Códigos de referencia BMW
         const codigosReferencia = {
@@ -481,11 +482,11 @@
             chart = new Chart(ctx, {
                 type: 'line',
                 data: {
-                    labels: ['0%', '25%', '50%', '75%', '100%'],
+                    labels: ['0%', '100%'],
                     datasets: [
                         {
                             label: 'Pieza',
-                            data: [0, 0, 0, 0, 0],
+                            data: [0, 0],
                             borderColor: 'rgba(102, 126, 234, 1)',
                             backgroundColor: 'rgba(102, 126, 234, 0.1)',
                             borderWidth: 3,
@@ -499,7 +500,7 @@
                         },
                         {
                             label: 'Pieza',
-                            data: [0, 0, 0, 0, 0],
+                            data: [0, 0],
                             borderColor: 'rgba(102, 126, 234, 1)',
                             backgroundColor: 'rgba(102, 126, 234, 0.1)',
                             borderWidth: 3,
@@ -664,7 +665,12 @@
                                     if (label) {
                                         label += ': ';
                                     }
-                                    label += Math.abs(context.parsed.y);
+                                    const absValue = Math.abs(context.parsed.y);
+                                    if (mostrarConsumos) {
+                                        label += absValue.toFixed(2) + ' A';
+                                    } else {
+                                        label += absValue.toFixed(1) + ' Nm';
+                                    }
                                     return label;
                                 }
                             }
@@ -676,22 +682,50 @@
 
         // Función para actualizar el gráfico con simetría vertical
         function updateChart() {
-            const percentages = ['0', '25', '50', '75', '100'];
+            const percentages = ['0', '100'];
             const izquierdaData = [];
             const derechaData = [];
 
             percentages.forEach(percent => {
-                const izquierda = parseFloat(document.getElementById(`${percent}-izquierda`).value) || 0;
-                const derecha = parseFloat(document.getElementById(`${percent}-derecha`).value) || 0;
-                
-                // Para simetría vertical: izquierda va negativo, derecha positivo
-                izquierdaData.push(-Math.abs(izquierda));
-                derechaData.push(Math.abs(derecha));
+                if (mostrarConsumos) {
+                    // Mostrar consumos
+                    const consumoIzquierda = parseFloat(document.getElementById(`${percent}-consumo-izquierda`).value) || 0;
+                    const consumoDerecha = parseFloat(document.getElementById(`${percent}-consumo-derecha`).value) || 0;
+                    izquierdaData.push(-Math.abs(consumoIzquierda));
+                    derechaData.push(Math.abs(consumoDerecha));
+                } else {
+                    // Mostrar pares
+                    const izquierda = parseFloat(document.getElementById(`${percent}-izquierda`).value) || 0;
+                    const derecha = parseFloat(document.getElementById(`${percent}-derecha`).value) || 0;
+                    izquierdaData.push(-Math.abs(izquierda));
+                    derechaData.push(Math.abs(derecha));
+                }
             });
 
             // Actualizar datos del gráfico (cargas manuales)
             chart.data.datasets[0].data = izquierdaData;
             chart.data.datasets[1].data = derechaData;
+            
+            // Actualizar etiquetas del eje X
+            chart.data.labels = mostrarConsumos ? ['0%', '100%*'] : ['0%', '100%'];
+            
+            // Actualizar título del eje Y
+            chart.options.scales.y.title.text = mostrarConsumos ? 'Consumo (A)' : 'Par (Nm)';
+            
+            // Actualizar formato de ticks
+            chart.options.scales.y.ticks.callback = function(value) {
+                const absValue = Math.abs(value);
+                if (mostrarConsumos) {
+                    // Para consumos, mostrar 2 decimales
+                    return absValue.toFixed(2);
+                } else {
+                    // Para pares, mostrar 1 decimal o entero
+                    if (Math.abs(absValue - Math.round(absValue)) < 0.0001) {
+                        return Math.round(absValue);
+                    }
+                    return absValue.toFixed(1);
+                }
+            };
             
             // Si hay un patrón cargado, mantenerlo visible
             if (patronActual) {
@@ -700,8 +734,15 @@
                 
                 percentages.forEach(percent => {
                     if (patronActual[percent]) {
-                        patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
-                        patronDerechaData.push(Math.abs(patronActual[percent].derecha));
+                        if (mostrarConsumos) {
+                            // Mostrar consumos del patrón
+                            patronIzquierdaData.push(-Math.abs(patronActual[percent].consumo_izquierda || 0));
+                            patronDerechaData.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                        } else {
+                            // Mostrar pares del patrón
+                            patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
+                            patronDerechaData.push(Math.abs(patronActual[percent].derecha));
+                        }
                     } else {
                         patronIzquierdaData.push(null);
                         patronDerechaData.push(null);
@@ -724,13 +765,21 @@
                             const factor = 1 + (dispersion / 100);
                             const factorInferior = 1 - (dispersion / 100);
                             
-                            // Límites para izquierda (valores negativos)
-                            limiteSuperiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factor));
-                            limiteInferiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factorInferior));
-                            
-                            // Límites para derecha (valores positivos)
-                            limiteSuperiorDerecha.push(Math.abs(patronActual[percent].derecha * factor));
-                            limiteInferiorDerecha.push(Math.abs(patronActual[percent].derecha * factorInferior));
+                            if (mostrarConsumos) {
+                                // Límites para consumos
+                                const consumoIzq = patronActual[percent].consumo_izquierda || 0;
+                                const consumoDrch = patronActual[percent].consumo_derecha || 0;
+                                limiteSuperiorIzquierda.push(-Math.abs(consumoIzq * factor));
+                                limiteInferiorIzquierda.push(-Math.abs(consumoIzq * factorInferior));
+                                limiteSuperiorDerecha.push(Math.abs(consumoDrch * factor));
+                                limiteInferiorDerecha.push(Math.abs(consumoDrch * factorInferior));
+                            } else {
+                                // Límites para pares
+                                limiteSuperiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factor));
+                                limiteInferiorIzquierda.push(-Math.abs(patronActual[percent].izquierda * factorInferior));
+                                limiteSuperiorDerecha.push(Math.abs(patronActual[percent].derecha * factor));
+                                limiteInferiorDerecha.push(Math.abs(patronActual[percent].derecha * factorInferior));
+                            }
                         } else {
                             limiteSuperiorIzquierda.push(null);
                             limiteSuperiorDerecha.push(null);
@@ -783,8 +832,13 @@
             if (patronActual) {
                 percentages.forEach(percent => {
                     if (patronActual[percent]) {
-                        allValues.push(Math.abs(patronActual[percent].izquierda));
-                        allValues.push(Math.abs(patronActual[percent].derecha));
+                        if (mostrarConsumos) {
+                            allValues.push(Math.abs(patronActual[percent].consumo_izquierda || 0));
+                            allValues.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                        } else {
+                            allValues.push(Math.abs(patronActual[percent].izquierda));
+                            allValues.push(Math.abs(patronActual[percent].derecha));
+                        }
                     }
                 });
                 
@@ -813,7 +867,9 @@
             percentages.forEach(percent => {
                 dataToSend[percent] = {
                     izquierda: parseFloat(document.getElementById(`${percent}-izquierda`).value) || 0,
-                    derecha: parseFloat(document.getElementById(`${percent}-derecha`).value) || 0
+                    derecha: parseFloat(document.getElementById(`${percent}-derecha`).value) || 0,
+                    consumo_izquierda: parseFloat(document.getElementById(`${percent}-consumo-izquierda`).value) || 0,
+                    consumo_derecha: parseFloat(document.getElementById(`${percent}-consumo-derecha`).value) || 0
                 };
             });
 
@@ -833,8 +889,18 @@
                 const data = await response.json();
                 
                 Object.keys(data).forEach(percent => {
-                    document.getElementById(`${percent}-izquierda`).value = data[percent].izquierda;
-                    document.getElementById(`${percent}-derecha`).value = data[percent].derecha;
+                    if (document.getElementById(`${percent}-izquierda`)) {
+                        document.getElementById(`${percent}-izquierda`).value = data[percent].izquierda || 0;
+                    }
+                    if (document.getElementById(`${percent}-derecha`)) {
+                        document.getElementById(`${percent}-derecha`).value = data[percent].derecha || 0;
+                    }
+                    if (document.getElementById(`${percent}-consumo-izquierda`)) {
+                        document.getElementById(`${percent}-consumo-izquierda`).value = data[percent].consumo_izquierda || 0;
+                    }
+                    if (document.getElementById(`${percent}-consumo-derecha`)) {
+                        document.getElementById(`${percent}-consumo-derecha`).value = data[percent].consumo_derecha || 0;
+                    }
                 });
                 
                 updateChart();
@@ -907,6 +973,22 @@
             }
         }
 
+        // Función para alternar entre mostrar pares y consumos
+        function alternarTipoDatos() {
+            if (!chart) return;
+            
+            mostrarConsumos = !mostrarConsumos;
+            
+            // Actualizar el texto del botón
+            const toggleButton = document.getElementById('toggleDataButton');
+            if (toggleButton) {
+                toggleButton.textContent = mostrarConsumos ? '🔧 Mostrar Pares (Nm)' : '📊 Mostrar Consumos (A)';
+            }
+            
+            // Actualizar el gráfico
+            updateChart();
+        }
+
         // Actualizar gráfico automáticamente al cambiar valores
         document.querySelectorAll('input[type="number"]').forEach(input => {
             input.addEventListener('input', updateChart);
@@ -929,13 +1011,15 @@
                 const imagenGrafico = canvas.toDataURL('image/png');
                 
                 // Recopilar datos actuales
-                const percentages = ['0', '25', '50', '75', '100'];
+                const percentages = ['0', '100'];
                 const cargas = {};
                 
                 percentages.forEach(percent => {
                     cargas[percent] = {
                         izquierda: parseFloat(document.getElementById(`${percent}-izquierda`).value) || 0,
-                        derecha: parseFloat(document.getElementById(`${percent}-derecha`).value) || 0
+                        derecha: parseFloat(document.getElementById(`${percent}-derecha`).value) || 0,
+                        consumo_izquierda: parseFloat(document.getElementById(`${percent}-consumo-izquierda`).value) || 0,
+                        consumo_derecha: parseFloat(document.getElementById(`${percent}-consumo-derecha`).value) || 0
                     };
                 });
                 

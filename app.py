@@ -18,11 +18,8 @@ app = Flask(__name__)
 
 # Almacenamiento de datos en memoria
 data_store = {
-    '0': {'izquierda': 0, 'derecha': 0},
-    '25': {'izquierda': 0, 'derecha': 0},
-    '50': {'izquierda': 0, 'derecha': 0},
-    '75': {'izquierda': 0, 'derecha': 0},
-    '100': {'izquierda': 0, 'derecha': 0}
+    '0': {'izquierda': 0, 'derecha': 0, 'consumo_izquierda': 0, 'consumo_derecha': 0},
+    '100': {'izquierda': 0, 'derecha': 0, 'consumo_izquierda': 0, 'consumo_derecha': 0}
 }
 
 @app.route('/')
@@ -44,7 +41,9 @@ def update_data():
             if percentage in data_store:
                 data_store[percentage] = {
                     'izquierda': float(values.get('izquierda', 0)),
-                    'derecha': float(values.get('derecha', 0))
+                    'derecha': float(values.get('derecha', 0)),
+                    'consumo_izquierda': float(values.get('consumo_izquierda', 0)),
+                    'consumo_derecha': float(values.get('consumo_derecha', 0))
                 }
         return jsonify({'success': True, 'data': data_store})
     except Exception as e:
@@ -500,19 +499,21 @@ def generar_informe():
         elements.append(info_table)
         elements.append(Spacer(1, 10))
         
-        # Tabla de cargas
-        carga_headers = [['Porcentaje', 'Izquierda (Nm)', 'Derecha (Nm)']]
+        # Tabla de cargas (solo 0% y 100%)
+        carga_headers = [['Porcentaje', 'Par Izquierda (Nm)', 'Par Derecha (Nm)', 'Consumo Izquierda (A)', 'Consumo Derecha (A)']]
         carga_data = carga_headers.copy()
         
-        for percent in ['0', '25', '50', '75', '100']:
+        for percent in ['0', '100']:
             if percent in cargas:
                 carga_data.append([
                     f'{percent}%',
                     f"{cargas[percent].get('izquierda', 0):.1f}",
-                    f"{cargas[percent].get('derecha', 0):.1f}"
+                    f"{cargas[percent].get('derecha', 0):.1f}",
+                    f"{cargas[percent].get('consumo_izquierda', 0):.2f}",
+                    f"{cargas[percent].get('consumo_derecha', 0):.2f}"
                 ])
         
-        carga_table = Table(carga_data, colWidths=[50*mm, 70*mm, 70*mm])
+        carga_table = Table(carga_data, colWidths=[40*mm, 35*mm, 35*mm, 35*mm, 35*mm])
         carga_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -524,7 +525,7 @@ def generar_informe():
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
         ]))
-        elements.append(Paragraph('Datos de Par', styles['Heading2']))
+        elements.append(Paragraph('Datos de Par y Consumo', styles['Heading2']))
         elements.append(Spacer(1, 6))
         elements.append(carga_table)
         elements.append(Spacer(1, 10))

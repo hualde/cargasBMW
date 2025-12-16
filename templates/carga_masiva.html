@@ -443,7 +443,7 @@
         let patronActual = null;
         let referenciaActual = null;
         let referenciaExcel = null;
-        let mostrarConsumos = false; // false = mostrar pares, true = mostrar consumos
+        let modoVisualizacion = 'pares'; // 'pares', 'consumos', 'ruido'
         
         // Códigos de referencia BMW
         const codigosReferencia = {
@@ -617,7 +617,7 @@
             const ctx = document.getElementById('mainChart').getContext('2d');
             const percentages = ['0', '100'];
             // Etiquetas del eje X: cambiar '100%' a '100%*' cuando se muestran consumos
-            const labels = mostrarConsumos ? ['0%', '100%*'] : ['0%', '100%'];
+            const labels = modoVisualizacion === 'consumos' ? ['0%', '100%*'] : ['0%', '100%'];
 
             // Preparar datasets para cada pieza
             const datasets = [];
@@ -643,22 +643,31 @@
                 const izquierdaData = [];
                 const derechaData = [];
 
-                percentages.forEach(percent => {
-                    if (cargas[percent]) {
-                        if (mostrarConsumos) {
-                            // Mostrar consumos
-                            izquierdaData.push(-Math.abs(cargas[percent].consumo_izquierda || 0));
-                            derechaData.push(Math.abs(cargas[percent].consumo_derecha || 0));
+                if (modoVisualizacion === 'ruido') {
+                    // Mostrar ruido: solo en el 100%, usar valor_columna_l
+                    const ruido = cargas['100'] ? (cargas['100'].valor_columna_l || 0) : 0;
+                    izquierdaData.push(0); // 0% no tiene ruido
+                    derechaData.push(0); // 0% no tiene ruido
+                    izquierdaData.push(-Math.abs(ruido));
+                    derechaData.push(Math.abs(ruido));
+                } else {
+                    percentages.forEach(percent => {
+                        if (cargas[percent]) {
+                            if (modoVisualizacion === 'consumos') {
+                                // Mostrar consumos
+                                izquierdaData.push(-Math.abs(cargas[percent].consumo_izquierda || 0));
+                                derechaData.push(Math.abs(cargas[percent].consumo_derecha || 0));
+                            } else {
+                                // Mostrar pares
+                                izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
+                                derechaData.push(Math.abs(cargas[percent].derecha || 0));
+                            }
                         } else {
-                            // Mostrar pares
-                            izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
-                            derechaData.push(Math.abs(cargas[percent].derecha || 0));
+                            izquierdaData.push(0);
+                            derechaData.push(0);
                         }
-                    } else {
-                        izquierdaData.push(0);
-                        derechaData.push(0);
-                    }
-                });
+                    });
+                }
 
                 datasets.push({
                     label: `${pieza.referencia} - Izquierda`,
@@ -698,9 +707,14 @@
                 const cargas = pieza.cargas;
                 percentages.forEach(percent => {
                     if (cargas[percent]) {
-                        if (mostrarConsumos) {
+                        if (modoVisualizacion === 'consumos') {
                             allValues.push(Math.abs(cargas[percent].consumo_izquierda || 0));
                             allValues.push(Math.abs(cargas[percent].consumo_derecha || 0));
+                        } else if (modoVisualizacion === 'ruido') {
+                            // Para ruido, solo incluir el valor del 100%
+                            if (percent === '100') {
+                                allValues.push(Math.abs(cargas[percent].valor_columna_l || 0));
+                            }
                         } else {
                             allValues.push(Math.abs(cargas[percent].izquierda || 0));
                             allValues.push(Math.abs(cargas[percent].derecha || 0));
@@ -738,8 +752,8 @@
                             ticks: {
                                 callback: function(value) {
                                     const absValue = Math.abs(value);
-                                    if (mostrarConsumos) {
-                                        // Para consumos, mostrar 2 decimales
+                                    if (modoVisualizacion === 'consumos' || modoVisualizacion === 'ruido') {
+                                        // Para consumos y ruido, mostrar 2 decimales
                                         return absValue.toFixed(2);
                                     } else {
                                         // Para pares, mostrar 1 decimal o entero
@@ -756,7 +770,7 @@
                             },
                             title: {
                                 display: true,
-                                text: mostrarConsumos ? 'Consumo (A)' : 'Par (Nm)',
+                                text: modoVisualizacion === 'consumos' ? 'Consumo (A)' : (modoVisualizacion === 'ruido' ? 'Ruido (mm/s²)' : 'Par (Nm)'),
                                 font: {
                                     size: 14,
                                     weight: 'bold'
@@ -779,9 +793,12 @@
                                     const piezaId = context.dataset.label.replace(' - Izquierda', '').replace(' - Derecha', '');
                                     const pieza = datosPiezas[Object.keys(datosPiezas).find(k => datosPiezas[k].referencia === piezaId)];
                                     
-                                    if (mostrarConsumos) {
+                                    if (modoVisualizacion === 'consumos') {
                                         // Mostrar consumo
                                         label += Math.abs(context.parsed.y).toFixed(2) + ' A';
+                                    } else if (modoVisualizacion === 'ruido') {
+                                        // Mostrar ruido
+                                        label += Math.abs(context.parsed.y).toFixed(2) + ' mm/s²';
                                     } else {
                                         // Mostrar par y también el consumo como información adicional
                                         label += Math.abs(context.parsed.y).toFixed(1) + ' Nm';
@@ -813,16 +830,29 @@
             crearLeyendaPersonalizada();
         }
 
-        // Función para alternar entre mostrar pares y consumos
+        // Función para alternar entre mostrar pares, consumos y ruido
         function alternarTipoDatos() {
             if (!chart || !datosPiezas) return;
             
-            mostrarConsumos = !mostrarConsumos;
+            // Ciclar entre los tres modos: pares -> consumos -> ruido -> pares
+            if (modoVisualizacion === 'pares') {
+                modoVisualizacion = 'consumos';
+            } else if (modoVisualizacion === 'consumos') {
+                modoVisualizacion = 'ruido';
+            } else {
+                modoVisualizacion = 'pares';
+            }
             
             // Actualizar el texto del botón
             const toggleButton = document.getElementById('toggleDataButton');
             if (toggleButton) {
-                toggleButton.textContent = mostrarConsumos ? '🔧 Mostrar Pares (Nm)' : '📊 Mostrar Consumos (A)';
+                if (modoVisualizacion === 'pares') {
+                    toggleButton.textContent = '📊 Mostrar Consumos (A)';
+                } else if (modoVisualizacion === 'consumos') {
+                    toggleButton.textContent = '🔊 Mostrar Ruido';
+                } else {
+                    toggleButton.textContent = '🔧 Mostrar Pares (Nm)';
+                }
             }
             
             // Actualizar los datos de todos los datasets de piezas
@@ -843,48 +873,64 @@
                 
                 // Actualizar dataset izquierda
                 const izquierdaData = [];
-                percentages.forEach(percent => {
-                    if (cargas[percent]) {
-                        if (mostrarConsumos) {
-                            izquierdaData.push(-Math.abs(cargas[percent].consumo_izquierda || 0));
+                const derechaData = [];
+                
+                if (modoVisualizacion === 'ruido') {
+                    // Mostrar ruido: solo en el 100%, usar valor_columna_l
+                    const ruido = cargas['100'] ? (cargas['100'].valor_columna_l || 0) : 0;
+                    izquierdaData.push(0); // 0% no tiene ruido
+                    derechaData.push(0); // 0% no tiene ruido
+                    izquierdaData.push(-Math.abs(ruido));
+                    derechaData.push(Math.abs(ruido));
+                } else {
+                    percentages.forEach(percent => {
+                        if (cargas[percent]) {
+                            if (modoVisualizacion === 'consumos') {
+                                izquierdaData.push(-Math.abs(cargas[percent].consumo_izquierda || 0));
+                            } else {
+                                izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
+                            }
                         } else {
-                            izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
+                            izquierdaData.push(0);
                         }
-                    } else {
-                        izquierdaData.push(0);
-                    }
-                });
+                    });
+                    
+                    percentages.forEach(percent => {
+                        if (cargas[percent]) {
+                            if (modoVisualizacion === 'consumos') {
+                                derechaData.push(Math.abs(cargas[percent].consumo_derecha || 0));
+                            } else {
+                                derechaData.push(Math.abs(cargas[percent].derecha || 0));
+                            }
+                        } else {
+                            derechaData.push(0);
+                        }
+                    });
+                }
+                
                 chart.data.datasets[datasetIndex].data = izquierdaData;
                 datasetIndex++;
-                
-                // Actualizar dataset derecha
-                const derechaData = [];
-                percentages.forEach(percent => {
-                    if (cargas[percent]) {
-                        if (mostrarConsumos) {
-                            derechaData.push(Math.abs(cargas[percent].consumo_derecha || 0));
-                        } else {
-                            derechaData.push(Math.abs(cargas[percent].derecha || 0));
-                        }
-                    } else {
-                        derechaData.push(0);
-                    }
-                });
                 chart.data.datasets[datasetIndex].data = derechaData;
                 datasetIndex++;
             });
             
             // Actualizar título del eje Y
-            chart.options.scales.y.title.text = mostrarConsumos ? 'Consumo (A)' : 'Par (Nm)';
+            if (modoVisualizacion === 'consumos') {
+                chart.options.scales.y.title.text = 'Consumo (A)';
+            } else if (modoVisualizacion === 'ruido') {
+                chart.options.scales.y.title.text = 'Ruido (mm/s²)';
+            } else {
+                chart.options.scales.y.title.text = 'Par (Nm)';
+            }
             
             // Actualizar etiquetas del eje X: cambiar '100%' a '100%*' cuando se muestran consumos
-            chart.data.labels = mostrarConsumos ? ['0%', '100%*'] : ['0%', '100%'];
+            chart.data.labels = modoVisualizacion === 'consumos' ? ['0%', '100%*'] : ['0%', '100%'];
             
-            // Actualizar formato de ticks para consumos (2 decimales) o pares (1 decimal)
+            // Actualizar formato de ticks
             chart.options.scales.y.ticks.callback = function(value) {
                 const absValue = Math.abs(value);
-                if (mostrarConsumos) {
-                    // Para consumos, mostrar 2 decimales
+                if (modoVisualizacion === 'consumos' || modoVisualizacion === 'ruido') {
+                    // Para consumos y ruido, mostrar 2 decimales
                     return absValue.toFixed(2);
                 } else {
                     // Para pares, mostrar 1 decimal o entero
@@ -1174,7 +1220,7 @@
             const percentages = ['0', '100'];
             const dispersionPar = parseFloat(document.getElementById('dispersion-par').value) || 0;
             const dispersionConsumo = parseFloat(document.getElementById('dispersion-consumo').value) || 0;
-            const dispersion = mostrarConsumos ? dispersionConsumo : dispersionPar;
+            const dispersion = modoVisualizacion === 'consumos' ? dispersionConsumo : (modoVisualizacion === 'ruido' ? 0 : dispersionPar);
 
             // Eliminar datasets de patrón y límites anteriores
             const datasetsToRemove = [];
@@ -1199,10 +1245,14 @@
 
                 percentages.forEach(percent => {
                     if (patronActual[percent]) {
-                        if (mostrarConsumos) {
+                        if (modoVisualizacion === 'consumos') {
                             // Datos de consumo para el patrón
                             patronIzquierdaData.push(-Math.abs(patronActual[percent].consumo_izquierda || 0));
                             patronDerechaData.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                        } else if (modoVisualizacion === 'ruido') {
+                            // Para ruido, no mostrar patrón
+                            patronIzquierdaData.push(null);
+                            patronDerechaData.push(null);
                         } else {
                             // Datos de par para el patrón
                             patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
@@ -1244,8 +1294,8 @@
                     pointBorderWidth: 2
                 });
 
-                // Añadir límites de dispersión si hay dispersión
-                if (dispersion > 0) {
+                // Añadir límites de dispersión si hay dispersión (no para ruido)
+                if (dispersion > 0 && modoVisualizacion !== 'ruido') {
                     const limiteSuperiorIzquierda = [];
                     const limiteSuperiorDerecha = [];
                     const limiteInferiorIzquierda = [];
@@ -1256,7 +1306,7 @@
                             const factor = 1 + (dispersion / 100);
                             const factorInferior = 1 - (dispersion / 100);
 
-                            if (mostrarConsumos) {
+                            if (modoVisualizacion === 'consumos') {
                                 // Límites para consumos
                                 const consumoIzq = patronActual[percent].consumo_izquierda || 0;
                                 const consumoDrch = patronActual[percent].consumo_derecha || 0;
@@ -1355,11 +1405,11 @@
 
             try {
                 // Guardar el estado actual
-                const estadoOriginal = mostrarConsumos;
+                const estadoOriginal = modoVisualizacion;
                 const canvas = document.getElementById('mainChart');
                 
                 // Función auxiliar para capturar gráfico sin cambiar el estado visible
-                const capturarGrafico = (mostrarConsumosTemp) => {
+                const capturarGrafico = (modoTemp) => {
                     // Actualizar datos temporalmente
                     const percentages = ['0', '100'];
                     const piezaIds = Object.keys(datosPiezas).sort((a, b) => {
@@ -1378,45 +1428,59 @@
                         
                         // Actualizar dataset izquierda
                         const izquierdaData = [];
-                        percentages.forEach(percent => {
-                            if (cargas[percent]) {
-                                if (mostrarConsumosTemp) {
-                                    izquierdaData.push(-Math.abs(cargas[percent].consumo_izquierda || 0));
+                        const derechaData = [];
+                        
+                        if (modoTemp === 'ruido') {
+                            const ruido = cargas['100'] ? (cargas['100'].valor_columna_l || 0) : 0;
+                            izquierdaData.push(0);
+                            derechaData.push(0);
+                            izquierdaData.push(-Math.abs(ruido));
+                            derechaData.push(Math.abs(ruido));
+                        } else {
+                            percentages.forEach(percent => {
+                                if (cargas[percent]) {
+                                    if (modoTemp === 'consumos') {
+                                        izquierdaData.push(-Math.abs(cargas[percent].consumo_izquierda || 0));
+                                    } else {
+                                        izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
+                                    }
                                 } else {
-                                    izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
+                                    izquierdaData.push(0);
                                 }
-                            } else {
-                                izquierdaData.push(0);
-                            }
-                        });
+                            });
+                            
+                            percentages.forEach(percent => {
+                                if (cargas[percent]) {
+                                    if (modoTemp === 'consumos') {
+                                        derechaData.push(Math.abs(cargas[percent].consumo_derecha || 0));
+                                    } else {
+                                        derechaData.push(Math.abs(cargas[percent].derecha || 0));
+                                    }
+                                } else {
+                                    derechaData.push(0);
+                                }
+                            });
+                        }
                         chart.data.datasets[datasetIndex].data = izquierdaData;
                         datasetIndex++;
-                        
-                        // Actualizar dataset derecha
-                        const derechaData = [];
-                        percentages.forEach(percent => {
-                            if (cargas[percent]) {
-                                if (mostrarConsumosTemp) {
-                                    derechaData.push(Math.abs(cargas[percent].consumo_derecha || 0));
-                                } else {
-                                    derechaData.push(Math.abs(cargas[percent].derecha || 0));
-                                }
-                            } else {
-                                derechaData.push(0);
-                            }
-                        });
                         chart.data.datasets[datasetIndex].data = derechaData;
                         datasetIndex++;
                     });
                     
                     // Actualizar título del eje Y y etiquetas del eje X
-                    chart.options.scales.y.title.text = mostrarConsumosTemp ? 'Consumo (A)' : 'Par (Nm)';
-                    chart.data.labels = mostrarConsumosTemp ? ['0%', '100%*'] : ['0%', '100%'];
+                    if (modoTemp === 'consumos') {
+                        chart.options.scales.y.title.text = 'Consumo (A)';
+                    } else if (modoTemp === 'ruido') {
+                        chart.options.scales.y.title.text = 'Ruido (mm/s²)';
+                    } else {
+                        chart.options.scales.y.title.text = 'Par (Nm)';
+                    }
+                    chart.data.labels = modoTemp === 'consumos' ? ['0%', '100%*'] : ['0%', '100%'];
                     
                     // Actualizar formato de ticks
                     chart.options.scales.y.ticks.callback = function(value) {
                         const absValue = Math.abs(value);
-                        if (mostrarConsumosTemp) {
+                        if (modoTemp === 'consumos' || modoTemp === 'ruido') {
                             return absValue.toFixed(2);
                         } else {
                             if (Math.abs(absValue - Math.round(absValue)) < 0.0001) {
@@ -1432,21 +1496,27 @@
                 };
                 
                 // Capturar gráfico de pares
-                capturarGrafico(false);
+                capturarGrafico('pares');
                 const imagenGraficoPares = canvas.toDataURL('image/png');
                 
                 // Capturar gráfico de consumos
-                capturarGrafico(true);
+                capturarGrafico('consumos');
                 const imagenGraficoConsumos = canvas.toDataURL('image/png');
                 
                 // Restaurar el estado original
-                mostrarConsumos = estadoOriginal;
+                modoVisualizacion = estadoOriginal;
                 capturarGrafico(estadoOriginal);
                 
                 // Actualizar el texto del botón
                 const toggleButton = document.getElementById('toggleDataButton');
                 if (toggleButton) {
-                    toggleButton.textContent = mostrarConsumos ? '🔧 Mostrar Pares (Nm)' : '📊 Mostrar Consumos (A)';
+                    if (modoVisualizacion === 'pares') {
+                        toggleButton.textContent = '📊 Mostrar Consumos (A)';
+                    } else if (modoVisualizacion === 'consumos') {
+                        toggleButton.textContent = '🔊 Mostrar Ruido';
+                    } else {
+                        toggleButton.textContent = '🔧 Mostrar Pares (Nm)';
+                    }
                 }
 
                 // Recopilar solo las piezas que están visibles en el gráfico

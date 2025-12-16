@@ -161,12 +161,15 @@ def procesar_excel():
                 consumo_izda = round(float(row.iloc[9]), 2) if pd.notna(row.iloc[9]) else 0  # Columna J (índice 9): Consumo Izquierda (A)
                 consumo_drch = round(float(row.iloc[10]), 2) if pd.notna(row.iloc[10]) else 0  # Columna K (índice 10): Consumo Derecha (A)
                 
-                # Si es NumPaso 5, guardar solo los consumos para el 100%
+                # Si es NumPaso 5, guardar los consumos y el valor de la columna L para el 100%
                 if num_paso == 5:
                     key_paso5 = (of, pieza)
+                    # Columna L (índice 11) contiene un valor adicional para el paso 5
+                    valor_columna_l = round(float(row.iloc[11]), 2) if pd.notna(row.iloc[11]) and len(row) > 11 else 0
                     consumos_paso5[key_paso5] = {
                         'consumo_izquierda': consumo_izda,
-                        'consumo_derecha': consumo_drch
+                        'consumo_derecha': consumo_drch,
+                        'valor_columna_l': valor_columna_l
                     }
                     continue
                 
@@ -207,8 +210,8 @@ def procesar_excel():
                     'of': of,
                     'pieza': pieza,
                     'cargas': {
-                        '0': {'izquierda': 0, 'derecha': 0, 'consumo_izquierda': 0, 'consumo_derecha': 0},
-                        '100': {'izquierda': 0, 'derecha': 0, 'consumo_izquierda': 0, 'consumo_derecha': 0}
+                        '0': {'izquierda': 0, 'derecha': 0, 'consumo_izquierda': 0, 'consumo_derecha': 0, 'valor_columna_l': 0},
+                        '100': {'izquierda': 0, 'derecha': 0, 'consumo_izquierda': 0, 'consumo_derecha': 0, 'valor_columna_l': 0}
                     }
                 }
             
@@ -226,14 +229,18 @@ def procesar_excel():
                     # Usar consumos del paso 5 para el 100%
                     datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_izquierda'] = consumos_paso5[key_paso5].get('consumo_izquierda', 0)
                     datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_derecha'] = consumos_paso5[key_paso5].get('consumo_derecha', 0)
+                    # Añadir el valor de la columna L del paso 5
+                    datos_por_pieza[clave_pieza]['cargas'][percent]['valor_columna_l'] = consumos_paso5[key_paso5].get('valor_columna_l', 0)
                 else:
                     # Si no hay paso 5, usar los del paso 4
                     datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_izquierda'] = valores.get('consumo_izquierda', 0)
                     datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_derecha'] = valores.get('consumo_derecha', 0)
+                    datos_por_pieza[clave_pieza]['cargas'][percent]['valor_columna_l'] = 0
             else:
                 # Para el 0%, usar consumos normalmente
                 datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_izquierda'] = valores.get('consumo_izquierda', 0)
                 datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_derecha'] = valores.get('consumo_derecha', 0)
+                datos_por_pieza[clave_pieza]['cargas'][percent]['valor_columna_l'] = 0
         
         # Convertir a formato JSON
         resultado = {
@@ -331,7 +338,7 @@ def generar_informe_masivo():
         elements.append(Spacer(1, 10))
         
         # Tabla resumen de todas las piezas (solo 0% y 100%)
-        resumen_headers = [['Pieza', '0% Par (Nm)', '0% Consumo (A)', '100% Par (Nm)', '100% Consumo (A)']]
+        resumen_headers = [['Pieza', '0% Par (Nm)', '0% Consumo (A)', '100% Par (Nm)', '100% Consumo (A)', 'Ruido']]
         resumen_data = resumen_headers.copy()
         
         # Ordenar piezas por OF y número de pieza
@@ -360,9 +367,13 @@ def generar_informe_masivo():
                     valores.append('-')
                     valores.append('-')
             
+            # Añadir valor de columna L solo para el 100%
+            valor_columna_l = cargas.get('100', {}).get('valor_columna_l', 0)
+            valores.append(f'{valor_columna_l:.2f}' if valor_columna_l > 0 else '-')
+            
             resumen_data.append([referencia] + valores)
         
-        resumen_table = Table(resumen_data, colWidths=[50*mm, 30*mm, 30*mm, 30*mm, 30*mm])
+        resumen_table = Table(resumen_data, colWidths=[45*mm, 25*mm, 25*mm, 25*mm, 25*mm, 25*mm])
         resumen_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -375,8 +386,6 @@ def generar_informe_masivo():
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
         ]))
-        elements.append(Paragraph('Resumen de Par por Pieza', styles['Heading2']))
-        elements.append(Spacer(1, 6))
         elements.append(resumen_table)
         elements.append(Spacer(1, 10))
         
@@ -516,20 +525,22 @@ def generar_informe():
         elements.append(Spacer(1, 10))
         
         # Tabla de cargas (solo 0% y 100%)
-        carga_headers = [['Porcentaje', 'Par Izquierda (Nm)', 'Par Derecha (Nm)', 'Consumo Izquierda (A)', 'Consumo Derecha (A)']]
+        carga_headers = [['Porcentaje', 'Par Izquierda (Nm)', 'Par Derecha (Nm)', 'Consumo Izquierda (A)', 'Consumo Derecha (A)', 'Ruido']]
         carga_data = carga_headers.copy()
         
         for percent in ['0', '100']:
             if percent in cargas:
+                valor_columna_l = cargas[percent].get('valor_columna_l', 0)
                 carga_data.append([
                     f'{percent}%',
                     f"{cargas[percent].get('izquierda', 0):.1f}",
                     f"{cargas[percent].get('derecha', 0):.1f}",
                     f"{cargas[percent].get('consumo_izquierda', 0):.2f}",
-                    f"{cargas[percent].get('consumo_derecha', 0):.2f}"
+                    f"{cargas[percent].get('consumo_derecha', 0):.2f}",
+                    f"{valor_columna_l:.2f}" if valor_columna_l > 0 else '-'
                 ])
         
-        carga_table = Table(carga_data, colWidths=[40*mm, 35*mm, 35*mm, 35*mm, 35*mm])
+        carga_table = Table(carga_data, colWidths=[30*mm, 30*mm, 30*mm, 30*mm, 30*mm, 30*mm])
         carga_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),

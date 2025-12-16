@@ -421,6 +421,11 @@
     <div id="loading" class="loading" style="display: none;">Procesando archivo...</div>
 
     <div id="chartContainerWrapper" class="chart-container-wrapper hidden">
+        <div style="text-align: center; margin-bottom: 15px;">
+            <button id="toggleDataButton" class="upload-button" onclick="alternarTipoDatos()" style="width: auto; padding: 12px 30px; margin: 0;">
+                📊 Mostrar Consumos (A)
+            </button>
+        </div>
         <div class="chart-container">
             <canvas id="mainChart"></canvas>
         </div>
@@ -433,6 +438,7 @@
         let patronActual = null;
         let referenciaActual = null;
         let referenciaExcel = null;
+        let mostrarConsumos = false; // false = mostrar pares, true = mostrar consumos
         
         // Códigos de referencia BMW
         const codigosReferencia = {
@@ -602,8 +608,9 @@
 
         function crearGrafica() {
             const ctx = document.getElementById('mainChart').getContext('2d');
-            const percentages = ['0', '25', '50', '75', '100'];
-            const labels = ['0%', '25%', '50%', '75%', '100%'];
+            const percentages = ['0', '100'];
+            // Etiquetas del eje X: cambiar '100%' a '100%*' cuando se muestran consumos
+            const labels = mostrarConsumos ? ['0%', '100%*'] : ['0%', '100%'];
 
             // Preparar datasets para cada pieza
             const datasets = [];
@@ -625,14 +632,21 @@
                 const color = coloresPiezas[index % coloresPiezas.length];
                 const colorAlpha = color.replace('1)', '0.1)');
 
-                // Datos izquierda
+                // Datos izquierda y derecha (par o consumo según el modo)
                 const izquierdaData = [];
                 const derechaData = [];
 
                 percentages.forEach(percent => {
                     if (cargas[percent]) {
-                        izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
-                        derechaData.push(Math.abs(cargas[percent].derecha || 0));
+                        if (mostrarConsumos) {
+                            // Mostrar consumos
+                            izquierdaData.push(-Math.abs(cargas[percent].consumo_izquierda || 0));
+                            derechaData.push(Math.abs(cargas[percent].consumo_derecha || 0));
+                        } else {
+                            // Mostrar pares
+                            izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
+                            derechaData.push(Math.abs(cargas[percent].derecha || 0));
+                        }
                     } else {
                         izquierdaData.push(0);
                         derechaData.push(0);
@@ -677,8 +691,13 @@
                 const cargas = pieza.cargas;
                 percentages.forEach(percent => {
                     if (cargas[percent]) {
-                        allValues.push(Math.abs(cargas[percent].izquierda || 0));
-                        allValues.push(Math.abs(cargas[percent].derecha || 0));
+                        if (mostrarConsumos) {
+                            allValues.push(Math.abs(cargas[percent].consumo_izquierda || 0));
+                            allValues.push(Math.abs(cargas[percent].consumo_derecha || 0));
+                        } else {
+                            allValues.push(Math.abs(cargas[percent].izquierda || 0));
+                            allValues.push(Math.abs(cargas[percent].derecha || 0));
+                        }
                     }
                 });
             });
@@ -712,10 +731,16 @@
                             ticks: {
                                 callback: function(value) {
                                     const absValue = Math.abs(value);
-                                    if (Math.abs(absValue - Math.round(absValue)) < 0.0001) {
-                                        return Math.round(absValue);
+                                    if (mostrarConsumos) {
+                                        // Para consumos, mostrar 2 decimales
+                                        return absValue.toFixed(2);
+                                    } else {
+                                        // Para pares, mostrar 1 decimal o entero
+                                        if (Math.abs(absValue - Math.round(absValue)) < 0.0001) {
+                                            return Math.round(absValue);
+                                        }
+                                        return absValue.toFixed(1);
                                     }
-                                    return absValue.toFixed(1);
                                 }
                             },
                             grid: {
@@ -724,7 +749,7 @@
                             },
                             title: {
                                 display: true,
-                                text: 'Par (Nm)',
+                                text: mostrarConsumos ? 'Consumo (A)' : 'Par (Nm)',
                                 font: {
                                     size: 14,
                                     weight: 'bold'
@@ -743,7 +768,32 @@
                                     if (label) {
                                         label += ': ';
                                     }
-                                    label += Math.abs(context.parsed.y);
+                                    
+                                    const piezaId = context.dataset.label.replace(' - Izquierda', '').replace(' - Derecha', '');
+                                    const pieza = datosPiezas[Object.keys(datosPiezas).find(k => datosPiezas[k].referencia === piezaId)];
+                                    
+                                    if (mostrarConsumos) {
+                                        // Mostrar consumo
+                                        label += Math.abs(context.parsed.y).toFixed(2) + ' A';
+                                    } else {
+                                        // Mostrar par y también el consumo como información adicional
+                                        label += Math.abs(context.parsed.y).toFixed(1) + ' Nm';
+                                        
+                                        if (pieza) {
+                                            const percentages = ['0', '100'];
+                                            const percentIndex = context.dataIndex;
+                                            const percent = percentages[percentIndex];
+                                            if (pieza.cargas && pieza.cargas[percent]) {
+                                                const isIzquierda = context.dataset.label.includes('Izquierda');
+                                                const consumo = isIzquierda 
+                                                    ? pieza.cargas[percent].consumo_izquierda 
+                                                    : pieza.cargas[percent].consumo_derecha;
+                                                if (consumo !== undefined && consumo !== null) {
+                                                    label += ` (Consumo: ${consumo.toFixed(2)} A)`;
+                                                }
+                                            }
+                                        }
+                                    }
                                     return label;
                                 }
                             }
@@ -754,6 +804,95 @@
 
             actualizarGrafica();
             crearLeyendaPersonalizada();
+        }
+
+        // Función para alternar entre mostrar pares y consumos
+        function alternarTipoDatos() {
+            if (!chart || !datosPiezas) return;
+            
+            mostrarConsumos = !mostrarConsumos;
+            
+            // Actualizar el texto del botón
+            const toggleButton = document.getElementById('toggleDataButton');
+            if (toggleButton) {
+                toggleButton.textContent = mostrarConsumos ? '🔧 Mostrar Pares (Nm)' : '📊 Mostrar Consumos (A)';
+            }
+            
+            // Actualizar los datos de todos los datasets de piezas
+            const percentages = ['0', '100'];
+            const piezaIds = Object.keys(datosPiezas).sort((a, b) => {
+                const piezaA = datosPiezas[a];
+                const piezaB = datosPiezas[b];
+                if (piezaA.of !== piezaB.of) {
+                    return piezaA.of - piezaB.of;
+                }
+                return piezaA.pieza - piezaB.pieza;
+            });
+            
+            let datasetIndex = 0;
+            piezaIds.forEach((piezaId) => {
+                const pieza = datosPiezas[piezaId];
+                const cargas = pieza.cargas;
+                
+                // Actualizar dataset izquierda
+                const izquierdaData = [];
+                percentages.forEach(percent => {
+                    if (cargas[percent]) {
+                        if (mostrarConsumos) {
+                            izquierdaData.push(-Math.abs(cargas[percent].consumo_izquierda || 0));
+                        } else {
+                            izquierdaData.push(-Math.abs(cargas[percent].izquierda || 0));
+                        }
+                    } else {
+                        izquierdaData.push(0);
+                    }
+                });
+                chart.data.datasets[datasetIndex].data = izquierdaData;
+                datasetIndex++;
+                
+                // Actualizar dataset derecha
+                const derechaData = [];
+                percentages.forEach(percent => {
+                    if (cargas[percent]) {
+                        if (mostrarConsumos) {
+                            derechaData.push(Math.abs(cargas[percent].consumo_derecha || 0));
+                        } else {
+                            derechaData.push(Math.abs(cargas[percent].derecha || 0));
+                        }
+                    } else {
+                        derechaData.push(0);
+                    }
+                });
+                chart.data.datasets[datasetIndex].data = derechaData;
+                datasetIndex++;
+            });
+            
+            // Actualizar título del eje Y
+            chart.options.scales.y.title.text = mostrarConsumos ? 'Consumo (A)' : 'Par (Nm)';
+            
+            // Actualizar etiquetas del eje X: cambiar '100%' a '100%*' cuando se muestran consumos
+            chart.data.labels = mostrarConsumos ? ['0%', '100%*'] : ['0%', '100%'];
+            
+            // Actualizar formato de ticks para consumos (2 decimales) o pares (1 decimal)
+            chart.options.scales.y.ticks.callback = function(value) {
+                const absValue = Math.abs(value);
+                if (mostrarConsumos) {
+                    // Para consumos, mostrar 2 decimales
+                    return absValue.toFixed(2);
+                } else {
+                    // Para pares, mostrar 1 decimal o entero
+                    if (Math.abs(absValue - Math.round(absValue)) < 0.0001) {
+                        return Math.round(absValue);
+                    }
+                    return absValue.toFixed(1);
+                }
+            };
+            
+            // Actualizar escala
+            actualizarEscala();
+            
+            // Actualizar el gráfico
+            chart.update();
         }
 
         function crearLeyendaPersonalizada() {
@@ -1027,7 +1166,7 @@
         function actualizarGrafica() {
             if (!chart || !datosPiezas) return;
 
-            const percentages = ['0', '25', '50', '75', '100'];
+            const percentages = ['0', '100'];
             const dispersion = parseFloat(document.getElementById('dispersion').value) || 0;
 
             // Eliminar datasets de patrón y límites anteriores

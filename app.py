@@ -114,13 +114,14 @@ def procesar_excel():
         if len(df) < 3:
             return jsonify({'error': 'El archivo Excel no tiene el formato esperado'}), 400
         
-        # Mapeo de NumPaso a porcentaje: 0=0%, 1=25%, 2=50%, 3=75%, 4=100%
-        # Excluir NumPaso 5 según requerimiento
-        paso_to_percent = {0: '0', 1: '25', 2: '50', 3: '75', 4: '100'}
+        # Mapeo de NumPaso a porcentaje: solo pasos 0 y 4 (0% y 100%)
+        paso_to_percent = {0: '0', 4: '100'}
         
         # Procesar datos agrupados por Pieza y NumPaso
         # Usar un diccionario para acumular valores y contar ocurrencias
         datos_acumulados = {}
+        # Diccionario separado para consumos del paso 5 (solo para el 100%)
+        consumos_paso5 = {}
         
         # Iterar desde la fila 3 (índice 3) en adelante
         # Detener cuando encontremos líneas en blanco (todas las columnas relevantes vacías)
@@ -129,11 +130,12 @@ def procesar_excel():
             
             # Verificar si la fila está completamente vacía o tiene líneas en blanco
             # Verificar columnas clave: Pieza (columna B, índice 1), OF (columna D, índice 3), NumPaso (columna E, índice 4)
-            # y los valores de par (columnas H e I, índices 7 y 8)
+            # valores de par (columnas H e I, índices 7 y 8) y consumo (columnas J e K, índices 9 y 10)
             # Si todas las columnas relevantes están vacías, detener el procesamiento
             try:
                 if (pd.isna(row.iloc[1]) and pd.isna(row.iloc[3]) and pd.isna(row.iloc[4]) and 
-                    pd.isna(row.iloc[7]) and pd.isna(row.iloc[8])):
+                    pd.isna(row.iloc[7]) and pd.isna(row.iloc[8]) and 
+                    pd.isna(row.iloc[9]) and pd.isna(row.iloc[10])):
                     # Si todas las columnas relevantes están vacías, detener el procesamiento
                     break
             except IndexError:
@@ -152,21 +154,31 @@ def procesar_excel():
                 of = int(row.iloc[3]) if pd.notna(row.iloc[3]) else None  # Columna D (índice 3): OF (Orden de Fabricación)
                 num_paso = int(row.iloc[4]) if pd.notna(row.iloc[4]) else None  # Columna E (índice 4): NumPaso
                 
-                # Excluir filas con NumPaso = 5
-                if num_paso == 5:
-                    continue
-                
                 # Validar que OF y num_paso sean válidos
                 if of is None or num_paso is None:
+                    continue
+                
+                # Columnas J e K (índices 9 y 10) contienen los valores de consumo en amperios
+                consumo_izda = round(float(row.iloc[9]), 2) if pd.notna(row.iloc[9]) else 0  # Columna J (índice 9): Consumo Izquierda (A)
+                consumo_drch = round(float(row.iloc[10]), 2) if pd.notna(row.iloc[10]) else 0  # Columna K (índice 10): Consumo Derecha (A)
+                
+                # Si es NumPaso 5, guardar solo los consumos para el 100%
+                if num_paso == 5:
+                    key_paso5 = (of, pieza)
+                    consumos_paso5[key_paso5] = {
+                        'consumo_izquierda': consumo_izda,
+                        'consumo_derecha': consumo_drch
+                    }
+                    continue
+                
+                # Para pasos 0 y 4, procesar normalmente
+                if num_paso not in paso_to_percent:
                     continue
                 
                 # Columnas H e I (índices 7 y 8) contienen los valores de par en Nm
                 # Redondear a 1 decimal para mantener la precisión del Excel
                 par_izda = round(float(row.iloc[7]), 1) if pd.notna(row.iloc[7]) else 0  # Columna H (índice 7): Par Izquierda
                 par_drch = round(float(row.iloc[8]), 1) if pd.notna(row.iloc[8]) else 0  # Columna I (índice 8): Par Derecha
-                
-                if num_paso not in paso_to_percent:
-                    continue
                 
                 percent = paso_to_percent[num_paso]
                 # Clave incluye OF y Pieza para diferenciar piezas del mismo número pero de distintas OF
@@ -176,7 +188,9 @@ def procesar_excel():
                 # (no se promedia, se toma el último valor encontrado)
                 datos_acumulados[key] = {
                     'izquierda': [par_izda],  # Solo guardar el último valor
-                    'derecha': [par_drch]
+                    'derecha': [par_drch],
+                    'consumo_izquierda': consumo_izda,  # Consumo en amperios
+                    'consumo_derecha': consumo_drch
                 }
                 
             except (ValueError, IndexError) as e:
@@ -194,20 +208,33 @@ def procesar_excel():
                     'of': of,
                     'pieza': pieza,
                     'cargas': {
-                        '0': {'izquierda': 0, 'derecha': 0},
-                        '25': {'izquierda': 0, 'derecha': 0},
-                        '50': {'izquierda': 0, 'derecha': 0},
-                        '75': {'izquierda': 0, 'derecha': 0},
-                        '100': {'izquierda': 0, 'derecha': 0}
+                        '0': {'izquierda': 0, 'derecha': 0, 'consumo_izquierda': 0, 'consumo_derecha': 0},
+                        '100': {'izquierda': 0, 'derecha': 0, 'consumo_izquierda': 0, 'consumo_derecha': 0}
                     }
                 }
             
-            # Calcular promedio y redondear a 1 decimal
+            # Calcular promedio y redondear a 1 decimal (para par)
             avg_izda = round(sum(valores['izquierda']) / len(valores['izquierda']), 1) if valores['izquierda'] else 0
             avg_drch = round(sum(valores['derecha']) / len(valores['derecha']), 1) if valores['derecha'] else 0
             
             datos_por_pieza[clave_pieza]['cargas'][percent]['izquierda'] = avg_izda
             datos_por_pieza[clave_pieza]['cargas'][percent]['derecha'] = avg_drch
+            
+            # Para el 100%, usar consumos del paso 5 si están disponibles, sino usar los del paso 4
+            if percent == '100':
+                key_paso5 = (of, pieza)
+                if key_paso5 in consumos_paso5:
+                    # Usar consumos del paso 5 para el 100%
+                    datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_izquierda'] = consumos_paso5[key_paso5].get('consumo_izquierda', 0)
+                    datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_derecha'] = consumos_paso5[key_paso5].get('consumo_derecha', 0)
+                else:
+                    # Si no hay paso 5, usar los del paso 4
+                    datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_izquierda'] = valores.get('consumo_izquierda', 0)
+                    datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_derecha'] = valores.get('consumo_derecha', 0)
+            else:
+                # Para el 0%, usar consumos normalmente
+                datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_izquierda'] = valores.get('consumo_izquierda', 0)
+                datos_por_pieza[clave_pieza]['cargas'][percent]['consumo_derecha'] = valores.get('consumo_derecha', 0)
         
         # Convertir a formato JSON
         resultado = {
@@ -297,8 +324,8 @@ def generar_informe_masivo():
         elements.append(info_table)
         elements.append(Spacer(1, 10))
         
-        # Tabla resumen de todas las piezas
-        resumen_headers = [['Pieza', '0%', '25%', '50%', '75%', '100%']]
+        # Tabla resumen de todas las piezas (solo 0% y 100%)
+        resumen_headers = [['Pieza', '0% Par (Nm)', '0% Consumo (A)', '100% Par (Nm)', '100% Consumo (A)']]
         resumen_data = resumen_headers.copy()
         
         # Ordenar piezas por OF y número de pieza
@@ -311,20 +338,25 @@ def generar_informe_masivo():
             referencia = pieza_info.get('referencia', pieza_id)
             cargas = pieza_info.get('cargas', {})
             
-            # Calcular valores promedio para cada porcentaje
+            # Calcular valores para 0% y 100%
             valores = []
-            for percent in ['0', '25', '50', '75', '100']:
+            for percent in ['0', '100']:
                 if percent in cargas:
                     izda = cargas[percent].get('izquierda', 0)
                     drch = cargas[percent].get('derecha', 0)
-                    promedio = (abs(izda) + abs(drch)) / 2
-                    valores.append(f'{promedio:.1f}')
+                    promedio_par = (abs(izda) + abs(drch)) / 2
+                    consumo_izda = cargas[percent].get('consumo_izquierda', 0)
+                    consumo_drch = cargas[percent].get('consumo_derecha', 0)
+                    promedio_consumo = (abs(consumo_izda) + abs(consumo_drch)) / 2
+                    valores.append(f'{promedio_par:.1f}')
+                    valores.append(f'{promedio_consumo:.2f}')
                 else:
+                    valores.append('-')
                     valores.append('-')
             
             resumen_data.append([referencia] + valores)
         
-        resumen_table = Table(resumen_data, colWidths=[50*mm, 25*mm, 25*mm, 25*mm, 25*mm, 25*mm])
+        resumen_table = Table(resumen_data, colWidths=[50*mm, 30*mm, 30*mm, 30*mm, 30*mm])
         resumen_table.setStyle(TableStyle([
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),

@@ -370,9 +370,6 @@
             📊 Carga Masiva desde Excel
         </a>
     </div>
-    <div class="input-section-title">
-        Introduce par en Nm y consumo en A
-    </div>
     <div class="input-section">
         <div class="input-group">
             <label>0%</label>
@@ -412,6 +409,10 @@
                 <label>Consumo Drch (A):</label>
                 <input type="number" id="100-consumo-derecha" step="0.1" value="0">
             </div>
+            <div class="input-row">
+                <label>Ruido (mm/s²):</label>
+                <input type="number" id="ruido" step="0.1" value="0">
+            </div>
         </div>
     </div>
 
@@ -434,18 +435,15 @@
         <button onclick="crearInforme()">Crear informe</button>
     </div>
 
-    <div class="ruido-group">
-        <label>Ruido (mm/s²):</label>
-        <input type="number" id="ruido" step="0.1" value="0">
-    </div>
-
-    <div class="dispersion-group">
-        <label>Dispersión Par (%):</label>
-        <input type="number" id="dispersion-par" step="0.1" min="0" value="0">
-    </div>
-    <div class="dispersion-group">
-        <label>Dispersión Consumo (%):</label>
-        <input type="number" id="dispersion-consumo" step="0.1" min="0" value="0">
+    <div style="max-width: 600px; margin: 0 auto 20px auto; display: flex; align-items: center; justify-content: center; gap: 20px; flex-wrap: wrap;">
+        <div class="dispersion-group" style="margin: 0;">
+            <label>Dispersión Par (%):</label>
+            <input type="number" id="dispersion-par" step="0.1" min="0" value="0">
+        </div>
+        <div class="dispersion-group" style="margin: 0;">
+            <label>Dispersión Consumo (%):</label>
+            <input type="number" id="dispersion-consumo" step="0.1" min="0" value="0">
+        </div>
     </div>
 
     <div style="max-width: 1400px; margin: 0 auto 20px auto; text-align: center;">
@@ -768,9 +766,16 @@
                             patronIzquierdaData.push(-Math.abs(patronActual[percent].consumo_izquierda || 0));
                             patronDerechaData.push(Math.abs(patronActual[percent].consumo_derecha || 0));
                         } else if (modoVisualizacion === 'ruido') {
-                            // Para ruido, no mostrar patrón (el ruido no tiene patrón)
-                            patronIzquierdaData.push(null);
-                            patronDerechaData.push(null);
+                            // Mostrar ruido del patrón (valor_columna_l)
+                            if (percent === '100') {
+                                const ruidoPatron = patronActual[percent].valor_columna_l || 0;
+                                patronIzquierdaData.push(-Math.abs(ruidoPatron));
+                                patronDerechaData.push(Math.abs(ruidoPatron));
+                            } else {
+                                // Para 0%, el ruido es 0
+                                patronIzquierdaData.push(0);
+                                patronDerechaData.push(0);
+                            }
                         } else {
                             // Mostrar pares del patrón
                             patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
@@ -872,7 +877,12 @@
                         if (modoVisualizacion === 'consumos') {
                             allValues.push(Math.abs(patronActual[percent].consumo_izquierda || 0));
                             allValues.push(Math.abs(patronActual[percent].consumo_derecha || 0));
-                        } else if (modoVisualizacion !== 'ruido') {
+                        } else if (modoVisualizacion === 'ruido') {
+                            // Incluir ruido del patrón en el cálculo de escala
+                            if (percent === '100') {
+                                allValues.push(Math.abs(patronActual[percent].valor_columna_l || 0));
+                            }
+                        } else {
                             allValues.push(Math.abs(patronActual[percent].izquierda));
                             allValues.push(Math.abs(patronActual[percent].derecha));
                         }
@@ -1105,22 +1115,31 @@
                         const patronIzquierdaData = [];
                         const patronDerechaData = [];
                         
-                        if (modoTemp !== 'ruido') {
-                            percentages.forEach(percent => {
-                                if (patronActual[percent]) {
-                                    if (modoTemp === 'consumos') {
-                                        patronIzquierdaData.push(-Math.abs(patronActual[percent].consumo_izquierda || 0));
-                                        patronDerechaData.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                        percentages.forEach(percent => {
+                            if (patronActual[percent]) {
+                                if (modoTemp === 'consumos') {
+                                    patronIzquierdaData.push(-Math.abs(patronActual[percent].consumo_izquierda || 0));
+                                    patronDerechaData.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                                } else if (modoTemp === 'ruido') {
+                                    // Mostrar ruido del patrón (valor_columna_l)
+                                    if (percent === '100') {
+                                        const ruidoPatron = patronActual[percent].valor_columna_l || 0;
+                                        patronIzquierdaData.push(-Math.abs(ruidoPatron));
+                                        patronDerechaData.push(Math.abs(ruidoPatron));
                                     } else {
-                                        patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
-                                        patronDerechaData.push(Math.abs(patronActual[percent].derecha));
+                                        // Para 0%, el ruido es 0
+                                        patronIzquierdaData.push(0);
+                                        patronDerechaData.push(0);
                                     }
                                 } else {
-                                    patronIzquierdaData.push(null);
-                                    patronDerechaData.push(null);
+                                    patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
+                                    patronDerechaData.push(Math.abs(patronActual[percent].derecha));
                                 }
-                            });
-                        }
+                            } else {
+                                patronIzquierdaData.push(null);
+                                patronDerechaData.push(null);
+                            }
+                        });
                         
                         chart.data.datasets[2].data = patronIzquierdaData;
                         chart.data.datasets[3].data = patronDerechaData;
@@ -1157,12 +1176,17 @@
                         ...derechaData.map(Math.abs)
                     ];
                     
-                    if (patronActual && modoTemp !== 'ruido') {
+                    if (patronActual) {
                         percentages.forEach(percent => {
                             if (patronActual[percent]) {
                                 if (modoTemp === 'consumos') {
                                     allValues.push(Math.abs(patronActual[percent].consumo_izquierda || 0));
                                     allValues.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                                } else if (modoTemp === 'ruido') {
+                                    // Incluir ruido del patrón en el cálculo de escala
+                                    if (percent === '100') {
+                                        allValues.push(Math.abs(patronActual[percent].valor_columna_l || 0));
+                                    }
                                 } else {
                                     allValues.push(Math.abs(patronActual[percent].izquierda));
                                     allValues.push(Math.abs(patronActual[percent].derecha));
@@ -1179,12 +1203,16 @@
                 };
                 
                 // Capturar gráfico de pares
-                capturarGrafico(false);
+                capturarGrafico('pares');
                 const imagenGraficoPares = canvas.toDataURL('image/png');
                 
                 // Capturar gráfico de consumos
-                capturarGrafico(true);
+                capturarGrafico('consumos');
                 const imagenGraficoConsumos = canvas.toDataURL('image/png');
+                
+                // Capturar gráfico de ruido
+                capturarGrafico('ruido');
+                const imagenGraficoRuido = canvas.toDataURL('image/png');
                 
                 // Restaurar el estado original
                 modoVisualizacion = estadoOriginal;
@@ -1228,7 +1256,8 @@
                     dispersion_consumo: dispersionConsumo,
                     ruido: ruido,
                     imagen_grafico_pares: imagenGraficoPares,
-                    imagen_grafico_consumos: imagenGraficoConsumos
+                    imagen_grafico_consumos: imagenGraficoConsumos,
+                    imagen_grafico_ruido: imagenGraficoRuido
                 };
                 
                 // Llamar al endpoint para generar el PDF

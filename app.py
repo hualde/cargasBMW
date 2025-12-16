@@ -506,8 +506,6 @@ def generar_informe():
             info_data.append(['Dispersión Par:', f'{dispersion_par}%'])
         if dispersion_consumo > 0:
             info_data.append(['Dispersión Consumo:', f'{dispersion_consumo}%'])
-        if ruido > 0:
-            info_data.append(['Ruido:', f'{ruido} mm/s²'])
         
         info_table = Table(info_data, colWidths=[60*mm, 130*mm])
         info_table.setStyle(TableStyle([
@@ -530,14 +528,15 @@ def generar_informe():
         
         for percent in ['0', '100']:
             if percent in cargas:
-                valor_columna_l = cargas[percent].get('valor_columna_l', 0)
+                # Para el 100%, mostrar el valor del ruido del box; para el 0%, mostrar '-'
+                valor_ruido = ruido if percent == '100' else 0
                 carga_data.append([
                     f'{percent}%',
                     f"{cargas[percent].get('izquierda', 0):.1f}",
                     f"{cargas[percent].get('derecha', 0):.1f}",
                     f"{cargas[percent].get('consumo_izquierda', 0):.2f}",
                     f"{cargas[percent].get('consumo_derecha', 0):.2f}",
-                    f"{valor_columna_l:.2f}" if valor_columna_l > 0 else '-'
+                    f"{valor_ruido:.2f}" if valor_ruido > 0 else '-'
                 ])
         
         carga_table = Table(carga_data, colWidths=[30*mm, 30*mm, 30*mm, 30*mm, 30*mm, 30*mm])

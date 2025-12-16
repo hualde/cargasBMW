@@ -1250,9 +1250,16 @@
                             patronIzquierdaData.push(-Math.abs(patronActual[percent].consumo_izquierda || 0));
                             patronDerechaData.push(Math.abs(patronActual[percent].consumo_derecha || 0));
                         } else if (modoVisualizacion === 'ruido') {
-                            // Para ruido, no mostrar patrón
-                            patronIzquierdaData.push(null);
-                            patronDerechaData.push(null);
+                            // Mostrar ruido del patrón (valor_columna_l)
+                            if (percent === '100') {
+                                const ruidoPatron = patronActual[percent].valor_columna_l || 0;
+                                patronIzquierdaData.push(-Math.abs(ruidoPatron));
+                                patronDerechaData.push(Math.abs(ruidoPatron));
+                            } else {
+                                // Para 0%, el ruido es 0
+                                patronIzquierdaData.push(0);
+                                patronDerechaData.push(0);
+                            }
                         } else {
                             // Datos de par para el patrón
                             patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
@@ -1490,6 +1497,49 @@
                         }
                     };
                     
+                    // Actualizar patrón si existe
+                    if (patronActual) {
+                        const patronIzquierdaData = [];
+                        const patronDerechaData = [];
+                        
+                        percentages.forEach(percent => {
+                            if (patronActual[percent]) {
+                                if (modoTemp === 'consumos') {
+                                    patronIzquierdaData.push(-Math.abs(patronActual[percent].consumo_izquierda || 0));
+                                    patronDerechaData.push(Math.abs(patronActual[percent].consumo_derecha || 0));
+                                } else if (modoTemp === 'ruido') {
+                                    // Mostrar ruido del patrón (valor_columna_l)
+                                    if (percent === '100') {
+                                        const ruidoPatron = patronActual[percent].valor_columna_l || 0;
+                                        patronIzquierdaData.push(-Math.abs(ruidoPatron));
+                                        patronDerechaData.push(Math.abs(ruidoPatron));
+                                    } else {
+                                        // Para 0%, el ruido es 0
+                                        patronIzquierdaData.push(0);
+                                        patronDerechaData.push(0);
+                                    }
+                                } else {
+                                    patronIzquierdaData.push(-Math.abs(patronActual[percent].izquierda));
+                                    patronDerechaData.push(Math.abs(patronActual[percent].derecha));
+                                }
+                            } else {
+                                patronIzquierdaData.push(null);
+                                patronDerechaData.push(null);
+                            }
+                        });
+                        
+                        // Buscar y actualizar datasets del patrón
+                        chart.data.datasets.forEach((dataset, index) => {
+                            if (dataset.label && dataset.label.includes('Patrón')) {
+                                if (dataset.label.includes('Izquierda')) {
+                                    chart.data.datasets[index].data = patronIzquierdaData;
+                                } else if (dataset.label.includes('Derecha')) {
+                                    chart.data.datasets[index].data = patronDerechaData;
+                                }
+                            }
+                        });
+                    }
+                    
                     // Actualizar escala
                     actualizarEscala();
                     chart.update('none');
@@ -1502,6 +1552,10 @@
                 // Capturar gráfico de consumos
                 capturarGrafico('consumos');
                 const imagenGraficoConsumos = canvas.toDataURL('image/png');
+                
+                // Capturar gráfico de ruido
+                capturarGrafico('ruido');
+                const imagenGraficoRuido = canvas.toDataURL('image/png');
                 
                 // Restaurar el estado original
                 modoVisualizacion = estadoOriginal;
@@ -1588,7 +1642,8 @@
                     dispersion_par: dispersionPar,
                     dispersion_consumo: dispersionConsumo,
                     imagen_grafico_pares: imagenGraficoPares,
-                    imagen_grafico_consumos: imagenGraficoConsumos
+                    imagen_grafico_consumos: imagenGraficoConsumos,
+                    imagen_grafico_ruido: imagenGraficoRuido
                 };
 
                 // Llamar al endpoint para generar el PDF

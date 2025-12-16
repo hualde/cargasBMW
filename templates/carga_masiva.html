@@ -379,6 +379,49 @@
         .hidden {
             display: none;
         }
+
+        /* Estilos para tooltip personalizado */
+        .tooltip-container {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip-text {
+            visibility: hidden;
+            width: 350px;
+            background-color: #333;
+            color: #fff;
+            text-align: left;
+            border-radius: 8px;
+            padding: 12px 15px;
+            position: absolute;
+            z-index: 1000;
+            bottom: 125%;
+            left: 50%;
+            margin-left: -175px;
+            opacity: 0;
+            transition: opacity 0.3s;
+            font-size: 0.9em;
+            line-height: 1.6;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+            white-space: pre-line;
+        }
+
+        .tooltip-text::after {
+            content: "";
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            margin-left: -5px;
+            border-width: 5px;
+            border-style: solid;
+            border-color: #333 transparent transparent transparent;
+        }
+
+        .tooltip-container:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -425,9 +468,14 @@
     <div id="loading" class="loading" style="display: none;">Procesando archivo...</div>
 
     <div id="toggleButtonContainer" class="hidden" style="max-width: 1400px; margin: 0 auto 20px auto; text-align: center;">
-        <button id="toggleDataButton" class="upload-button" onclick="alternarTipoDatos()" style="width: auto; padding: 12px 30px; margin: 0;">
-            📊 Mostrar Consumos (A)
-        </button>
+        <div class="tooltip-container">
+            <button id="toggleDataButton" class="upload-button" onclick="alternarTipoDatos()" style="width: auto; padding: 12px 30px; margin: 0;">
+                📊 Mostrar Consumos (A)
+            </button>
+            <span class="tooltip-text">Valores de carga obtenido a 0% y 100% en velocidad lenta
+Valores de consumo obtenidos a 0% y 100% en velocidad rapida (100%*)
+Valores de ruido obtenidos a 100% en velocidad rapida (100%*)</span>
+        </div>
     </div>
 
     <div id="chartContainerWrapper" class="chart-container-wrapper hidden">

@@ -1,23 +1,23 @@
 {
   "LA": {
-    "0": {"izquierda": 15, "derecha": 16, "consumo_izquierda": 1.2, "consumo_derecha": 1.3, "valor_columna_l": 0},
-    "100": {"izquierda": 465, "derecha": 460, "consumo_izquierda": 15.5, "consumo_derecha": 15.0, "valor_columna_l": 2.5}
+    "0": {"izquierda": 2.5, "derecha": 2.6, "consumo_izquierda": 3.5, "consumo_derecha": 3.6, "valor_columna_l": 0.8},
+    "100": {"izquierda": 6.5, "derecha": 6.6, "consumo_izquierda": 26, "consumo_derecha": 25, "valor_columna_l": 0.8}
   },
   "LB": {
-    "0": {"izquierda": 15, "derecha": 16, "consumo_izquierda": 1.2, "consumo_derecha": 1.3, "valor_columna_l": 0},
-    "100": {"izquierda": 465, "derecha": 460, "consumo_izquierda": 15.5, "consumo_derecha": 15.0, "valor_columna_l": 2.3}
+     "0": {"izquierda": 2.5, "derecha": 2.6, "consumo_izquierda": 3.5, "consumo_derecha": 3.6, "valor_columna_l": 0.8},
+    "100": {"izquierda": 6.5, "derecha": 6.6, "consumo_izquierda": 26, "consumo_derecha": 25, "valor_columna_l": 0.8}
   },
   "LE": {
-    "0": {"izquierda": 15, "derecha": 16, "consumo_izquierda": 1.2, "consumo_derecha": 1.3, "valor_columna_l": 0},
-    "100": {"izquierda": 450, "derecha": 460, "consumo_izquierda": 15.0, "consumo_derecha": 15.8, "valor_columna_l": 2.8}
+ "0": {"izquierda": 2.5, "derecha": 2.6, "consumo_izquierda": 3.5, "consumo_derecha": 3.6, "valor_columna_l": 0.8},
+    "100": {"izquierda": 6.5, "derecha": 6.6, "consumo_izquierda": 26, "consumo_derecha": 25, "valor_columna_l": 0.8}
   },
   "LG": {
-    "0": {"izquierda": 15, "derecha": 16, "consumo_izquierda": 1.2, "consumo_derecha": 1.3, "valor_columna_l": 0},
-    "100": {"izquierda": 465, "derecha": 460, "consumo_izquierda": 15.5, "consumo_derecha": 15.0, "valor_columna_l": 2.4}
+ "0": {"izquierda": 2.5, "derecha": 2.6, "consumo_izquierda": 3.5, "consumo_derecha": 3.6, "valor_columna_l": 0.8},
+    "100": {"izquierda": 6.5, "derecha": 6.6, "consumo_izquierda": 26, "consumo_derecha": 25, "valor_columna_l": 0.8}
   },
   "LH": {
-    "0": {"izquierda": 15, "derecha": 16, "consumo_izquierda": 1.2, "consumo_derecha": 1.3, "valor_columna_l": 0},
-    "100": {"izquierda": 465, "derecha": 460, "consumo_izquierda": 15.5, "consumo_derecha": 15.0, "valor_columna_l": 2.6}
+     "0": {"izquierda": 2.5, "derecha": 2.6, "consumo_izquierda": 3.5, "consumo_derecha": 3.6, "valor_columna_l": 0.8},
+    "100": {"izquierda": 6.5, "derecha": 6.6, "consumo_izquierda": 26, "consumo_derecha": 25, "valor_columna_l": 0.8}
   },
   "LI": {
     "0": {"izquierda": 15, "derecha": 16, "consumo_izquierda": 1.2, "consumo_derecha": 1.3, "valor_columna_l": 0},
